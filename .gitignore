@@ -1,0 +1,24 @@
+# Claude Code
+.claude/
+
+# Environment variables
+.env
+.env.test
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+.next/
+
+# Data and cache
+scripts/data/
+hydradb-data/
+
+# IDE
+.vscode/
+.idea/

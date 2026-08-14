@@ -1,0 +1,49 @@
+{
+  "sessions": [
+    {
+      "session_id": "alex-session-1",
+      "user_id": "alex",
+      "started_at": "2024-01-15T10:30:00Z",
+      "messages": [
+        {"role": "user", "content": "Hi, I'm Alex. I live in Rajshahi and work as a software engineer. I have a dog named Mochi."},
+        {"role": "assistant", "content": "Nice to meet you Alex! Rajshahi is beautiful. Mochi sounds like a cute dog."}
+      ]
+    },
+    {
+      "session_id": "alex-session-2",
+      "user_id": "alex",
+      "started_at": "2024-01-16T14:00:00Z",
+      "messages": [
+        {"role": "user", "content": "I have a meeting tomorrow at 9am with the team."},
+        {"role": "assistant", "content": "Good luck with your meeting tomorrow!"}
+      ]
+    },
+    {
+      "session_id": "alex-session-3",
+      "user_id": "alex",
+      "started_at": "2024-01-18T09:00:00Z",
+      "messages": [
+        {"role": "user", "content": "Mochi passed away yesterday. I'm really sad about it."},
+        {"role": "assistant", "content": "I'm so sorry for your loss. Losing a pet is never easy."}
+      ]
+    },
+    {
+      "session_id": "alex-session-4",
+      "user_id": "alex",
+      "started_at": "2024-02-01T16:30:00Z",
+      "messages": [
+        {"role": "user", "content": "I moved to Dhaka! Got promoted to senior engineer and adopted a cat named Pixel."},
+        {"role": "assistant", "content": "Congratulations on the promotion and the move! Pixel is a great name for a cat."}
+      ]
+    },
+    {
+      "session_id": "alex-session-5",
+      "user_id": "alex",
+      "started_at": "2024-03-10T11:00:00Z",
+      "messages": [
+        {"role": "user", "content": "I got engaged to Sara! Also promoted to tech lead."},
+        {"role": "assistant", "content": "Double congratulations! Engaged to Sara and tech lead - that's amazing news!"}
+      ]
+    }
+  ]
+}

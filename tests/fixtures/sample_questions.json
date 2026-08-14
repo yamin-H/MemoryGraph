@@ -1,0 +1,30 @@
+{
+  "questions": [
+    {
+      "question": "Where does Alex live?",
+      "expected_answer": "Dhaka",
+      "expected_confidence_min": 0.7
+    },
+    {
+      "question": "What is Alex's job?",
+      "expected_answer": "tech lead",
+      "expected_confidence_min": 0.7
+    },
+    {
+      "question": "What is Alex's pet's name?",
+      "expected_answer": "Pixel",
+      "expected_confidence_min": 0.7
+    },
+    {
+      "question": "Is Alex married?",
+      "expected_answer": "No, engaged to Sara",
+      "expected_confidence_min": 0.6
+    },
+    {
+      "question": "Does Alex still have a dog?",
+      "expected_abstain": true,
+      "expected_abstention_reason_contains": "Mochi",
+      "expected_confidence_max": 0.5
+    }
+  ]
+}
