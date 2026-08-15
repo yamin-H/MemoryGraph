@@ -1,30 +1,113 @@
 {
   "questions": [
     {
-      "question": "Where does Alex live?",
+      "question": "Where does Alex live now?",
       "expected_answer": "Dhaka",
       "expected_confidence_min": 0.7
     },
     {
-      "question": "What is Alex's job?",
+      "question": "What is Alex's current job title?",
       "expected_answer": "tech lead",
       "expected_confidence_min": 0.7
     },
     {
-      "question": "What is Alex's pet's name?",
-      "expected_answer": "Pixel",
+      "question": "Who is Alex engaged to?",
+      "expected_answer": "Sara",
       "expected_confidence_min": 0.7
     },
     {
-      "question": "Is Alex married?",
-      "expected_answer": "No, engaged to Sara",
+      "question": "What pet does Alex have now?",
+      "expected_answer": "cat named Pixel",
+      "expected_confidence_min": 0.7
+    },
+    {
+      "question": "What is Alex's current hobby?",
+      "expected_answer": "baking",
+      "expected_confidence_min": 0.5
+    },
+    {
+      "question": "Where did Alex live before Dhaka?",
+      "expected_answer": "Rajshahi",
       "expected_confidence_min": 0.6
     },
     {
-      "question": "Does Alex still have a dog?",
+      "question": "What was Alex's first job title in this story?",
+      "expected_answer": "software engineer",
+      "expected_confidence_min": 0.6
+    },
+    {
+      "question": "What was Alex's pet before Pixel?",
+      "expected_answer": "dog named Mochi",
+      "expected_confidence_min": 0.6
+    },
+    {
+      "question": "What pet does Alex have?",
+      "expected_answer": "cat Pixel",
+      "expected_confidence_min": 0.7,
+      "note": "Dog Mochi died \u2014 must return current pet, not Mochi"
+    },
+    {
+      "question": "Is Alex still a software engineer?",
+      "expected_answer": "no, tech lead",
+      "expected_confidence_min": 0.5
+    },
+    {
+      "question": "Does Alex still live in Rajshahi?",
+      "expected_answer": "no, Dhaka",
+      "expected_confidence_min": 0.5
+    },
+    {
+      "question": "Does Alex have any siblings?",
       "expected_abstain": true,
-      "expected_abstention_reason_contains": "Mochi",
       "expected_confidence_max": 0.5
+    },
+    {
+      "question": "What is Alex's mother's name?",
+      "expected_abstain": true,
+      "expected_confidence_max": 0.5
+    },
+    {
+      "question": "What car does Alex drive?",
+      "expected_abstain": true,
+      "expected_confidence_max": 0.5
+    },
+    {
+      "question": "Is Alex on vacation right now?",
+      "expected_answer": "no",
+      "expected_confidence_min": 0.5,
+      "note": "Vacation to Cox's Bazar was months ago, now invalid"
+    },
+    {
+      "question": "Does Alex have a project deadline this week?",
+      "expected_answer": "no",
+      "expected_confidence_min": 0.5,
+      "note": "Deadline was month 1, long passed"
+    },
+    {
+      "question": "Does Alex currently have a cold?",
+      "expected_answer": "no",
+      "expected_confidence_min": 0.5,
+      "note": "Cold was month 1, recovered"
+    },
+    {
+      "question": "Is Alex's wedding this month?",
+      "expected_answer": "no, next year",
+      "expected_confidence_min": 0.5
+    },
+    {
+      "question": "How has Alex's career progressed over these months?",
+      "expected_answer": "software engineer to senior engineer to tech lead",
+      "expected_confidence_min": 0.5
+    },
+    {
+      "question": "What major life changes happened to Alex?",
+      "expected_answer": "moved to Dhaka, Mochi died, adopted Pixel, met and engaged Sara",
+      "expected_confidence_min": 0.4
+    },
+    {
+      "question": "How did Alex's pets change over time?",
+      "expected_answer": "dog Mochi died, then adopted cat Pixel",
+      "expected_confidence_min": 0.5
     }
   ]
 }

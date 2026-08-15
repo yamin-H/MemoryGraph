@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  hydradb:
+    image: neo4j:5.24
+    container_name: memorygraph-hydradb
+    restart: unless-stopped
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: "neo4j/password"
+      NEO4J_server_memory_pagecache_size: "512M"
+      NEO4J_server_memory_heap_initial__size: "512M"
+      NEO4J_server_memory_heap_max__size: "1G"
+    volumes:
+      - hydradb_data:/data
+      - hydradb_logs:/logs
+      - hydradb_import:/var/lib/neo4j/import
+      - hydradb_plugins:/plugins
+
+  redis:
+    image: redis:7-alpine
+    container_name: memorygraph-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
+volumes:
+  hydradb_data:
+  hydradb_logs:
+  hydradb_import:
+  hydradb_plugins:
+  redis_data:

@@ -5,44 +5,832 @@
       "user_id": "alex",
       "started_at": "2024-01-15T10:30:00Z",
       "messages": [
-        {"role": "user", "content": "Hi, I'm Alex. I live in Rajshahi and work as a software engineer. I have a dog named Mochi."},
-        {"role": "assistant", "content": "Nice to meet you Alex! Rajshahi is beautiful. Mochi sounds like a cute dog."}
+        {
+          "role": "user",
+          "content": "Hi, I'm Alex. I live in Rajshahi and work as a software engineer."
+        },
+        {
+          "role": "assistant",
+          "content": "Nice to meet you, Alex! Rajshahi is a lovely city. What kind of software do you build?"
+        },
+        {
+          "role": "user",
+          "content": "Mostly backend services in Python. Oh, and I have a dog named Mochi \u2014 he's a golden retriever."
+        },
+        {
+          "role": "assistant",
+          "content": "A golden retriever named Mochi! That's adorable. Does he keep you company while you code?"
+        },
+        {
+          "role": "user",
+          "content": "Yeah, he sleeps under my desk. I'm single, by the way, and I really enjoy hiking on weekends."
+        },
+        {
+          "role": "assistant",
+          "content": "Hiking sounds like a great way to unwind. Any favorite trails near Rajshahi?"
+        }
       ]
     },
     {
       "session_id": "alex-session-2",
       "user_id": "alex",
-      "started_at": "2024-01-16T14:00:00Z",
+      "started_at": "2024-01-20T10:30:00Z",
       "messages": [
-        {"role": "user", "content": "I have a meeting tomorrow at 9am with the team."},
-        {"role": "assistant", "content": "Good luck with your meeting tomorrow!"}
+        {
+          "role": "user",
+          "content": "I'm cooking a new curry recipe tonight, feeling pretty good about it."
+        },
+        {
+          "role": "assistant",
+          "content": "Curry is a great choice! What's the star ingredient?"
+        },
+        {
+          "role": "user",
+          "content": "Chicken with a lot of spices. Cooking helps me relax after work."
+        },
+        {
+          "role": "assistant",
+          "content": "Nothing beats a home-cooked meal. Enjoy your evening!"
+        }
       ]
     },
     {
       "session_id": "alex-session-3",
       "user_id": "alex",
-      "started_at": "2024-01-18T09:00:00Z",
+      "started_at": "2024-01-25T10:30:00Z",
       "messages": [
-        {"role": "user", "content": "Mochi passed away yesterday. I'm really sad about it."},
-        {"role": "assistant", "content": "I'm so sorry for your loss. Losing a pet is never easy."}
+        {
+          "role": "user",
+          "content": "Heads up \u2014 I have a big project deadline next week. Kind of stressed."
+        },
+        {
+          "role": "assistant",
+          "content": "That's a tight timeline. Want to talk through how to break it down?"
+        },
+        {
+          "role": "user",
+          "content": "Maybe later. I also caught a cold this week, feeling pretty wiped out."
+        },
+        {
+          "role": "assistant",
+          "content": "Sorry to hear that. Rest up and drink plenty of fluids \u2014 the deadline will wait."
+        }
       ]
     },
     {
       "session_id": "alex-session-4",
       "user_id": "alex",
-      "started_at": "2024-02-01T16:30:00Z",
+      "started_at": "2024-01-30T10:30:00Z",
       "messages": [
-        {"role": "user", "content": "I moved to Dhaka! Got promoted to senior engineer and adopted a cat named Pixel."},
-        {"role": "assistant", "content": "Congratulations on the promotion and the move! Pixel is a great name for a cat."}
+        {
+          "role": "user",
+          "content": "Mochi and I went hiking near the river today. Felt nice to get outside."
+        },
+        {
+          "role": "assistant",
+          "content": "Glad you're feeling well enough for a hike! How's the cold?"
+        },
+        {
+          "role": "user",
+          "content": "Better, thanks. Still coughing a bit but the fresh air helped."
+        },
+        {
+          "role": "assistant",
+          "content": "Glad to hear it's improving. Take it easy."
+        }
       ]
     },
     {
       "session_id": "alex-session-5",
       "user_id": "alex",
-      "started_at": "2024-03-10T11:00:00Z",
+      "started_at": "2024-02-04T10:30:00Z",
       "messages": [
-        {"role": "user", "content": "I got engaged to Sara! Also promoted to tech lead."},
-        {"role": "assistant", "content": "Double congratulations! Engaged to Sara and tech lead - that's amazing news!"}
+        {
+          "role": "user",
+          "content": "The project is coming together. I think I'll hit the deadline."
+        },
+        {
+          "role": "assistant",
+          "content": "That's great progress! You've got this."
+        },
+        {
+          "role": "user",
+          "content": "Thanks. Mochi chewed my favorite shoe again though, little gremlin."
+        },
+        {
+          "role": "assistant",
+          "content": "Haha, classic retriever behavior. He keeps life interesting!"
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-6",
+      "user_id": "alex",
+      "started_at": "2024-02-09T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Quiet weekend, just cooked and watched movies with Mochi."
+        },
+        {
+          "role": "assistant",
+          "content": "Sounds peaceful. Any movie recommendations?"
+        },
+        {
+          "role": "user",
+          "content": "Nothing fancy, just comfort stuff. I've been meaning to plan a trip somewhere."
+        },
+        {
+          "role": "assistant",
+          "content": "A trip sounds nice. Anywhere in mind?"
+        },
+        {
+          "role": "user",
+          "content": "Not yet. Maybe the coast someday."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-7",
+      "user_id": "alex",
+      "started_at": "2024-02-14T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Mochi seems off today, not eating much. I'm a bit worried."
+        },
+        {
+          "role": "assistant",
+          "content": "That's concerning. Have you been able to get him to a vet?"
+        },
+        {
+          "role": "user",
+          "content": "Booked one for tomorrow. Hoping it's nothing serious."
+        },
+        {
+          "role": "assistant",
+          "content": "Fingers crossed for Mochi. Keep me posted."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-8",
+      "user_id": "alex",
+      "started_at": "2024-02-19T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Took Mochi to the vet, they're running tests. He's lethargic."
+        },
+        {
+          "role": "assistant",
+          "content": "I'm sorry, that sounds scary. Sending good thoughts your way."
+        },
+        {
+          "role": "user",
+          "content": "Thanks. The cold is finally gone at least, so that's something."
+        },
+        {
+          "role": "assistant",
+          "content": "Small wins. Hope Mochi pulls through."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-9",
+      "user_id": "alex",
+      "started_at": "2024-02-24T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Mochi's tests came back, they're treating him but he's weak."
+        },
+        {
+          "role": "assistant",
+          "content": "I hope the treatment helps quickly. How are you holding up?"
+        },
+        {
+          "role": "user",
+          "content": "Not great, honestly. Project deadline passed though \u2014 shipped it on time."
+        },
+        {
+          "role": "assistant",
+          "content": "Proud of you for shipping under stress. And hoping Mochi recovers."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-10",
+      "user_id": "alex",
+      "started_at": "2024-02-29T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "I'm devastated... Mochi passed away last night. I don't know what to do."
+        },
+        {
+          "role": "assistant",
+          "content": "I'm so, so sorry, Alex. Losing Mochi is a deep loss. Be gentle with yourself."
+        },
+        {
+          "role": "user",
+          "content": "Thank you. He was my best friend for years."
+        },
+        {
+          "role": "assistant",
+          "content": "He clearly meant the world to you. However you need to grieve is okay."
+        },
+        {
+          "role": "user",
+          "content": "I've been thinking maybe I should move to Dhaka, be closer to friends."
+        },
+        {
+          "role": "assistant",
+          "content": "A fresh start can help. Dhaka's a big change from Rajshahi though."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-11",
+      "user_id": "alex",
+      "started_at": "2024-03-05T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Still processing Mochi. Went for a long walk instead of hiking."
+        },
+        {
+          "role": "assistant",
+          "content": "That sounds grounding. Take all the time you need."
+        },
+        {
+          "role": "user",
+          "content": "I think I'll start looking at apartments in Dhaka next month."
+        },
+        {
+          "role": "assistant",
+          "content": "Whenever you're ready. No rush."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-12",
+      "user_id": "alex",
+      "started_at": "2024-03-10T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Found a few listings in Dhaka. Exciting but scary."
+        },
+        {
+          "role": "assistant",
+          "content": "Big move! What neighborhood are you leaning toward?"
+        },
+        {
+          "role": "user",
+          "content": "Something central, near the office. The cold is long gone now, thankfully."
+        },
+        {
+          "role": "assistant",
+          "content": "Good, health first. Central Dhaka has nice cafes too."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-13",
+      "user_id": "alex",
+      "started_at": "2024-03-15T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Packing up the Rajshahi place. Bittersweet."
+        },
+        {
+          "role": "assistant",
+          "content": "Completely understandable. Six months ago Mochi was here with you."
+        },
+        {
+          "role": "user",
+          "content": "Yeah. But I'm ready for what's next."
+        },
+        {
+          "role": "assistant",
+          "content": "That's a healthy place to be. Safe travels with the move."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-14",
+      "user_id": "alex",
+      "started_at": "2024-03-20T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "I moved to Dhaka! New apartment, central and sunny."
+        },
+        {
+          "role": "assistant",
+          "content": "Congratulations on the move! How's the new place?"
+        },
+        {
+          "role": "user",
+          "content": "Small but cozy. Different vibe from Rajshahi, busier streets."
+        },
+        {
+          "role": "assistant",
+          "content": "You'll settle in. Any favorite spot yet?"
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-15",
+      "user_id": "alex",
+      "started_at": "2024-03-25T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Got promoted to senior engineer today! Same team, more scope."
+        },
+        {
+          "role": "assistant",
+          "content": "That's fantastic, Alex \u2014 senior engineer, well deserved!"
+        },
+        {
+          "role": "user",
+          "content": "Thanks. Feels good after everything this year."
+        },
+        {
+          "role": "assistant",
+          "content": "You've earned it. Celebrate a little!"
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-16",
+      "user_id": "alex",
+      "started_at": "2024-03-30T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Exploring Dhaka, found a great coffee roaster nearby."
+        },
+        {
+          "role": "assistant",
+          "content": "Nice! Exploring a new city one cafe at a time."
+        },
+        {
+          "role": "user",
+          "content": "I'm feeling a lot better lately, more like myself."
+        },
+        {
+          "role": "assistant",
+          "content": "That's wonderful to hear. The move agreed with you."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-17",
+      "user_id": "alex",
+      "started_at": "2024-04-04T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "I adopted a cat! Her name is Pixel, she's a rescue."
+        },
+        {
+          "role": "assistant",
+          "content": "A cat named Pixel \u2014 love it! How are you two getting on?"
+        },
+        {
+          "role": "user",
+          "content": "She's shy but sweet. Different from Mochi but good company."
+        },
+        {
+          "role": "assistant",
+          "content": "Rescue cats have the best personalities. Give Pixel scritches from me."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-18",
+      "user_id": "alex",
+      "started_at": "2024-04-09T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Planning a vacation to Cox's Bazar next month, first real break."
+        },
+        {
+          "role": "assistant",
+          "content": "Cox's Bazar \u2014 the long beach! Well deserved after the year you've had."
+        },
+        {
+          "role": "user",
+          "content": "Yeah, Pixel will stay with a friend while I'm gone."
+        },
+        {
+          "role": "assistant",
+          "content": "She'll be fine. You enjoy the sea."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-19",
+      "user_id": "alex",
+      "started_at": "2024-04-14T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Met someone at a meetup \u2014 her name is Sara. We really hit it off."
+        },
+        {
+          "role": "assistant",
+          "content": "That's lovely, Alex! What's she like?"
+        },
+        {
+          "role": "user",
+          "content": "She's a designer, funny, into photography. We exchanged numbers."
+        },
+        {
+          "role": "assistant",
+          "content": "Sounds promising. Happy for you."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-20",
+      "user_id": "alex",
+      "started_at": "2024-04-19T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "On vacation in Cox's Bazar now \u2014 the beach is incredible."
+        },
+        {
+          "role": "assistant",
+          "content": "So glad you made it! How's the weather?"
+        },
+        {
+          "role": "user",
+          "content": "Sunny and warm. Pixel is with my friend, hopefully behaving."
+        },
+        {
+          "role": "assistant",
+          "content": "Enjoy every minute. You earned this trip."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-21",
+      "user_id": "alex",
+      "started_at": "2024-04-24T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Back from Cox's Bazar, already missing the ocean."
+        },
+        {
+          "role": "assistant",
+          "content": "Welcome back! How was the whole trip?"
+        },
+        {
+          "role": "user",
+          "content": "Perfect. And Sara and I went on a date \u2014 it went really well."
+        },
+        {
+          "role": "assistant",
+          "content": "A date with Sara! Things are moving nicely."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-22",
+      "user_id": "alex",
+      "started_at": "2024-04-29T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Sara and I are officially dating. Feels early but right."
+        },
+        {
+          "role": "assistant",
+          "content": "Congratulations! Dating Sara \u2014 wishing you both the best."
+        },
+        {
+          "role": "user",
+          "content": "Thanks. Pixel is terrified of water though, funny little thing."
+        },
+        {
+          "role": "assistant",
+          "content": "Haha, good thing you're not taking Pixel to the beach!"
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-23",
+      "user_id": "alex",
+      "started_at": "2024-05-04T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Started learning guitar, just basics so far."
+        },
+        {
+          "role": "assistant",
+          "content": "Guitar! Any song you're aiming for?"
+        },
+        {
+          "role": "user",
+          "content": "Nothing fancy, just campfire chords. Pixel judges me from the sofa."
+        },
+        {
+          "role": "assistant",
+          "content": "Pixel's a tough critic. Keep at it!"
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-24",
+      "user_id": "alex",
+      "started_at": "2024-05-09T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Sara came over, Pixel hid under the bed the whole time."
+        },
+        {
+          "role": "assistant",
+          "content": "Shy kitty! She'll warm up eventually."
+        },
+        {
+          "role": "user",
+          "content": "Probably. We cooked dinner together, it was nice."
+        },
+        {
+          "role": "assistant",
+          "content": "Cooking with Sara \u2014 sounds like a good evening."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-25",
+      "user_id": "alex",
+      "started_at": "2024-05-14T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Work's busy, but I got promoted to tech lead this week!"
+        },
+        {
+          "role": "assistant",
+          "content": "Tech lead! Big step up from senior engineer \u2014 congratulations, Alex!"
+        },
+        {
+          "role": "user",
+          "content": "Thanks. Leading the team now, a bit nervous but excited."
+        },
+        {
+          "role": "assistant",
+          "content": "You'll do great. From software engineer to tech lead in six months!"
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-26",
+      "user_id": "alex",
+      "started_at": "2024-05-19T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Sara and I got engaged! She said yes last night."
+        },
+        {
+          "role": "assistant",
+          "content": "Oh my goodness, congratulations! Engaged to Sara \u2014 amazing news!"
+        },
+        {
+          "role": "user",
+          "content": "Thanks. Still can't believe it. Pixel sat on the ring box, typical."
+        },
+        {
+          "role": "assistant",
+          "content": "Haha, Pixel oversaw the proposal. Wonderful news for you both."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-27",
+      "user_id": "alex",
+      "started_at": "2024-05-24T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "We're planning the wedding for next year, spring maybe."
+        },
+        {
+          "role": "assistant",
+          "content": "A spring wedding \u2014 beautiful. Starting early is smart."
+        },
+        {
+          "role": "user",
+          "content": "Lots to figure out. Venue, guest list, the works."
+        },
+        {
+          "role": "assistant",
+          "content": "Exciting times ahead. Enjoy the planning."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-28",
+      "user_id": "alex",
+      "started_at": "2024-05-29T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Pixel loves sleeping on my keyboard while I work. Annoying but cute."
+        },
+        {
+          "role": "assistant",
+          "content": "Classic cat behavior! She's claimed your desk as hers."
+        },
+        {
+          "role": "user",
+          "content": "Yeah. I've switched from cooking to baking lately, made bread."
+        },
+        {
+          "role": "assistant",
+          "content": "Baking bread is satisfying. Trading curry for sourdough?"
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-29",
+      "user_id": "alex",
+      "started_at": "2024-06-03T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Baked a cake for Sara's birthday, turned out decent."
+        },
+        {
+          "role": "assistant",
+          "content": "A homemade birthday cake \u2014 she'll love it."
+        },
+        {
+          "role": "user",
+          "content": "She did. We're thinking bigger apartment after the wedding."
+        },
+        {
+          "role": "assistant",
+          "content": "Makes sense, more space for two plus Pixel."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-30",
+      "user_id": "alex",
+      "started_at": "2024-06-08T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Guitar practice going okay, can play a full song now."
+        },
+        {
+          "role": "assistant",
+          "content": "Progress! Pixel approves now?"
+        },
+        {
+          "role": "user",
+          "content": "Still judges, but less. Career's good, life's good."
+        },
+        {
+          "role": "assistant",
+          "content": "Glad to hear it. You've come a long way this year."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-31",
+      "user_id": "alex",
+      "started_at": "2024-06-13T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Wedding venue's booked for next April. Feels real now."
+        },
+        {
+          "role": "assistant",
+          "content": "April wedding, booked \u2014 that's a milestone! Congrats again."
+        },
+        {
+          "role": "user",
+          "content": "Yeah. Sara's thrilled. I started a side project too, a small app."
+        },
+        {
+          "role": "assistant",
+          "content": "A side project on top of tech lead? Ambitious! What's it do?"
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-32",
+      "user_id": "alex",
+      "started_at": "2024-06-18T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Side project is a habit tracker, just for fun."
+        },
+        {
+          "role": "assistant",
+          "content": "Nice \u2014 dogfood your own tool. How's it coming?"
+        },
+        {
+          "role": "user",
+          "content": "Slow but steady. I want to move to a bigger apartment soon."
+        },
+        {
+          "role": "assistant",
+          "content": "More room for the soon-to-be family. Reasonable."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-33",
+      "user_id": "alex",
+      "started_at": "2024-06-23T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Looked at a bigger place near the park, love it."
+        },
+        {
+          "role": "assistant",
+          "content": "Near the park sounds great for walks. Put in an offer?"
+        },
+        {
+          "role": "user",
+          "content": "Not yet, but soon. Pixel would have a garden finally."
+        },
+        {
+          "role": "assistant",
+          "content": "Pixel's going to love a garden. Keep me posted."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-34",
+      "user_id": "alex",
+      "started_at": "2024-06-28T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Pixel has a vet appointment next week, just a checkup."
+        },
+        {
+          "role": "assistant",
+          "content": "Routine checkup, good to stay on top of it."
+        },
+        {
+          "role": "user",
+          "content": "Yeah. Hard to believe it's been six months since the move."
+        },
+        {
+          "role": "assistant",
+          "content": "Time flies. You've built a whole new life here."
+        }
+      ]
+    },
+    {
+      "session_id": "alex-session-35",
+      "user_id": "alex",
+      "started_at": "2024-07-03T10:30:00Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Reflecting on the past 6 months \u2014 a lot happened."
+        },
+        {
+          "role": "assistant",
+          "content": "You're not wrong. Want to look back at the highlights?"
+        },
+        {
+          "role": "user",
+          "content": "Lost Mochi, moved to Dhaka, met Sara, got engaged, two promotions..."
+        },
+        {
+          "role": "assistant",
+          "content": "Quite a journey. From Rajshahi to tech lead and engaged \u2014 remarkable."
+        },
+        {
+          "role": "user",
+          "content": "Yeah. Grateful for where things are now."
+        },
+        {
+          "role": "assistant",
+          "content": "Well earned, Alex. Here's to the next six months."
+        }
       ]
     }
   ]

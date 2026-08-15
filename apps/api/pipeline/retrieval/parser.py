@@ -4,9 +4,55 @@ Parses questions into structured form for graph traversal.
 """
 
 import json
+import re
 from typing import Any
 
 from groq import Groq
+
+
+def _fallback_parse_question(question: str) -> dict[str, Any]:
+    """Best-effort parser when Groq returns an empty response."""
+    normalized = question.strip()
+    if not normalized:
+        return {
+            "entity_name": None,
+            "question_type": "absent_information",
+            "original_question": question,
+            "keywords": [],
+        }
+
+    entity_name = None
+    for match in re.finditer(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", normalized):
+        candidate = match.group(0)
+        if candidate.lower() not in {"where", "what", "who", "when", "how", "which", "this", "that", "there", "here"}:
+            entity_name = candidate
+            break
+
+    lower_question = normalized.lower()
+    keywords: list[str] = []
+    if any(phrase in lower_question for phrase in ["live", "lives", "reside", "resides", "home", "location", "city", "country"]):
+        keywords.extend(["live", "location"])
+    if any(phrase in lower_question for phrase in ["work", "works", "job", "role", "profession", "career"]):
+        keywords.extend(["work", "job"])
+    if any(phrase in lower_question for phrase in ["dog", "cat", "pet", "favorite", "color", "name"]):
+        keywords.extend(["name", "pet"])
+    keywords = list(dict.fromkeys(keywords))
+
+    if re.search(r"\b(?:where|live|lives|home|reside|resides)\b", lower_question):
+        question_type = "current_fact"
+    elif re.search(r"\b(?:before|previous|used\s+to|earlier|old)\b", lower_question):
+        question_type = "historical_fact"
+    elif re.search(r"\b(?:jobs|job|work|career|profession|roles)\b", lower_question):
+        question_type = "multi_session_synthesis"
+    else:
+        question_type = "absent_information"
+
+    return {
+        "entity_name": entity_name,
+        "question_type": question_type,
+        "original_question": question,
+        "keywords": keywords,
+    }
 
 
 SYSTEM_PROMPT = """You are a question parser for a memory retrieval system. Your job is to extract structured information from natural language questions.
@@ -66,12 +112,7 @@ def parse_question(
 
         content = response.choices[0].message.content
         if not content:
-            return {
-                "entity_name": None,
-                "question_type": "absent_information",
-                "original_question": question,
-                "keywords": [],
-            }
+            return _fallback_parse_question(question)
 
         result = json.loads(content)
         result["original_question"] = question
@@ -83,6 +124,12 @@ def parse_question(
             result["question_type"] = "absent_information"
         if "keywords" not in result:
             result["keywords"] = []
+
+        if result.get("entity_name") is None and "original_question" in result:
+            fallback = _fallback_parse_question(question)
+            result["entity_name"] = fallback["entity_name"]
+            result["question_type"] = fallback["question_type"]
+            result["keywords"] = fallback["keywords"]
 
         return result
 

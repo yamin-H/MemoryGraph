@@ -88,6 +88,33 @@ class TestExtractor:
             assert isinstance(fact["fact_id"], str)
             assert len(fact["fact_id"]) == 36  # UUID format
 
+    def test_extract_facts_falls_back_to_session_text_when_llm_returns_empty(self):
+        """When the LLM is silent, the extractor should still recover core facts from the conversation text."""
+        from apps.api.pipeline.ingestion.extractor import extract_facts
+
+        client = MagicMock()
+        client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content='{"facts": []}'))]
+        )
+
+        session = {
+            "session_id": "fallback-1",
+            "user_id": "alex",
+            "started_at": "2024-01-15T10:30:00Z",
+            "messages": [
+                {"role": "user", "content": "I'm Alex. I live in Rajshahi and work as a software engineer."},
+                {"role": "user", "content": "I have a dog named Mochi and I enjoy hiking on weekends."},
+            ],
+        }
+
+        facts = extract_facts(client, session)
+
+        assert len(facts) >= 3
+        texts = {fact["content"] for fact in facts}
+        assert any("Alex lives in Rajshahi" in text for text in texts)
+        assert any("Alex works as a software engineer" in text for text in texts)
+        assert any("Alex has a dog named Mochi" in text for text in texts)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

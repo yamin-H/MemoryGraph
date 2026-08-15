@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from groq import Groq
 from langgraph.graph import StateGraph, END
 
+from config import settings
 from db.hydra import HydraDB
 from pipeline.ingestion.extractor import extract_facts
 from pipeline.ingestion.summarizer import summarize_session
@@ -103,6 +104,9 @@ def summarize_session_node(state: PipelineState) -> dict[str, Any]:
     print("  [3/8] Summarizing session...")
 
     api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return {"error": "GROQ_API_KEY not set", "failed_step": "summarize_session"}
+
     client = Groq(api_key=api_key)
     session = state["session"]
 
@@ -127,6 +131,11 @@ def resolve_entities_node(state: PipelineState) -> dict[str, Any]:
     return {}
 
 
+def _get_hydra() -> HydraDB:
+    """Create HydraDB instance from environment."""
+    return HydraDB(uri=settings.hydra_uri, auth_token=settings.hydra_token)
+
+
 def detect_supersessions_node(state: PipelineState) -> dict[str, Any]:
     """Node: Detect facts that should be superseded."""
     print("  [5/8] Detecting supersessions...")
@@ -135,7 +144,7 @@ def detect_supersessions_node(state: PipelineState) -> dict[str, Any]:
     client = Groq(api_key=api_key)
     facts = state.get("facts", [])
 
-    hydra = HydraDB()
+    hydra = _get_hydra()
     try:
         hydra.connect()
         supersessions = detect_supersession(client, hydra, facts)
@@ -156,7 +165,7 @@ def detect_invalidations_node(state: PipelineState) -> dict[str, Any]:
     session = state["session"]
     session_id = session.get("session_id", "unknown")
 
-    hydra = HydraDB()
+    hydra = _get_hydra()
     try:
         hydra.connect()
         invalidations = detect_invalidations(client, hydra, session_id)
@@ -172,7 +181,7 @@ def write_to_hydradb_node(state: PipelineState) -> dict[str, Any]:
     """Node: Write all data to HydraDB."""
     print("  [7/8] Writing to HydraDB...")
 
-    hydra = HydraDB()
+    hydra = _get_hydra()
     try:
         hydra.connect()
         result = write_to_hydradb(

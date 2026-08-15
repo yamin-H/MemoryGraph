@@ -6,15 +6,24 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from pipeline.graph import run_retrieval
+from services.memory_service import MemoryService
 
 router = APIRouter()
+service = MemoryService()
 
 
 class QueryRequest(BaseModel):
     """Request body for query."""
     question: str
     user_id: str = "anonymous"
+
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("question must not be empty")
+        return value.strip()
+
+    model_config = {"str_strip_whitespace": True}
 
 
 @router.post("")
@@ -27,14 +36,7 @@ async def query_memory(request: QueryRequest) -> dict[str, Any]:
     Returns:
         Full response with answer, confidence, abstention info
     """
-    result = run_retrieval(request.question)
-
-    return result.get("answer", {
-        "answer": "Unable to process query",
-        "confidence": 0.0,
-        "abstained": True,
-        "abstention_reason": "Processing error",
-    })
+    return service.query_memory(request.question, user_id=request.user_id)
 
 
 @router.post("/stream")
@@ -56,9 +58,9 @@ async def query_stream(request: QueryRequest) -> StreamingResponse:
         await asyncio.sleep(0.1)
 
         # Run the pipeline
-        result = run_retrieval(request.question)
-        parsed = result.get("parsed_question", {})
-        answer = result.get("answer", {})
+        result = service.query_memory(request.question, user_id=request.user_id)
+        parsed = {"entity_name": None, "question_type": "current_fact"}
+        answer = result
 
         # Step 2: Entity identified
         yield f"data: {json.dumps({'event': 'entity', 'entity': parsed.get('entity_name'), 'type': parsed.get('question_type')})}\n\n"

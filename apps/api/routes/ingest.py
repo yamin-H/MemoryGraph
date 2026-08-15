@@ -2,41 +2,36 @@
 
 from typing import Any
 
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException
 
-from pipeline.graph import run_pipeline
+from services.memory_service import MemoryService
 
 router = APIRouter()
+service = MemoryService()
 
 
-class SessionIngestRequest:
+class SessionIngestRequest(BaseModel):
     """Request body for session ingestion."""
-    session_id: str
-    user_id: str
-    started_at: str
-    messages: list[dict[str, str]]
+    session_id: str = Field(..., min_length=1)
+    user_id: str = Field(..., min_length=1)
+    started_at: str = Field(..., min_length=1)
+    messages: list[dict[str, str]] = Field(default_factory=list)
 
 
 @router.post("/session")
-async def ingest_session(session: dict[str, Any]) -> dict[str, Any]:
+async def ingest_session(session: SessionIngestRequest) -> dict[str, Any]:
     """Ingest a single session.
 
     Args:
-        session: Session dict with session_id, user_id, started_at, messages
+        session: Session payload with session_id, user_id, started_at, messages
 
     Returns:
         Write summary from ingestion pipeline
     """
     try:
-        result = run_pipeline(session)
-
-        if result.get("error"):
-            raise HTTPException(
-                status_code=500,
-                detail=f"Ingestion failed: {result['error']}",
-            )
-
-        return result.get("write_result", {})
+        result = service.ingest_session(session.model_dump())
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -52,30 +47,4 @@ async def ingest_batch(sessions: list[dict[str, Any]]) -> list[dict[str, Any]]:
     Returns:
         List of write summaries
     """
-    results = []
-
-    for session in sessions:
-        try:
-            result = run_pipeline(session)
-
-            if result.get("error"):
-                results.append({
-                    "session_id": session.get("session_id"),
-                    "error": result["error"],
-                    "success": False,
-                })
-            else:
-                results.append({
-                    "session_id": session.get("session_id"),
-                    "write_result": result.get("write_result"),
-                    "success": True,
-                })
-
-        except Exception as e:
-            results.append({
-                "session_id": session.get("session_id"),
-                "error": str(e),
-                "success": False,
-            })
-
-    return results
+    return service.ingest_batch(sessions)

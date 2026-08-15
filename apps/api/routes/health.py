@@ -13,12 +13,17 @@ router = APIRouter()
 
 
 def get_hydra():
-    """Get HydraDB client using bearer token auth."""
+    """Get HydraDB client using Neo4j username/password auth."""
     import neo4j
     from neo4j import GraphDatabase
     uri = os.environ.get("HYDRADB_URI", "neo4j://127.0.0.1:7687")
-    token = os.environ.get("HYDRADB_TOKEN", "local-development-token-32-bytes")
-    driver = GraphDatabase.driver(uri, auth=neo4j.bearer_auth(token))
+    token = os.environ.get("HYDRADB_TOKEN", "neo4j/password")
+    if "/" in token:
+        username, password = token.split("/", 1)
+        auth = neo4j.basic_auth(username, password)
+    else:
+        auth = neo4j.basic_auth("neo4j", token)
+    driver = GraphDatabase.driver(uri, auth=auth)
     return driver
 
 

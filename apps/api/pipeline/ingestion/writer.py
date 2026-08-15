@@ -156,13 +156,21 @@ def write_to_hydradb(
                 continue
 
             # Create fact linked to entity via MENTIONS
+            # Ensure entity has its name property set
             db_session.run(
-                "MERGE (f:Fact {id: $fact_int_id, content: $content, confidence: $confidence, is_current: true, created_at: $created_at})-[:MENTIONS]->(e:Entity {id: $entity_id})",
+                "MATCH (e:Entity {id: $entity_id}) SET e.name = $entity_name RETURN e",
+                entity_id=entity_id,
+                entity_name=entity_name,
+            )
+
+            db_session.run(
+                "MERGE (f:Fact {id: $fact_int_id, content: $content, confidence: $confidence, is_current: true, created_at: $created_at})-[:MENTIONS]->(e:Entity {id: $entity_id, name: $entity_name})",
                 fact_int_id=fact_int_id,
                 content=content,
                 confidence=confidence,
                 created_at=created_at,
                 entity_id=entity_id,
+                entity_name=entity_name,
             )
             nodes_created += 1  # Fact (entity already exists)
             edges_created += 1  # MENTIONS

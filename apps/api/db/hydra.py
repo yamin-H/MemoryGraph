@@ -1,5 +1,7 @@
 """HydraDB connection module using Neo4j driver."""
 
+from __future__ import annotations
+
 from neo4j import GraphDatabase
 import neo4j
 
@@ -10,24 +12,59 @@ class HydraDB:
     def __init__(
         self,
         uri: str = "neo4j://127.0.0.1:7687",
-        auth_token: str = "local-development-token-32-bytes",
+        auth_token: str = "neo4j/password",
     ):
         self.uri = uri
-        self.auth_token = auth_token
+        self.auth_token = auth_token or "neo4j/password"
         self._driver = None
 
+    def _build_auth(self):
+        """Build a Neo4j auth object that works for local HydraDB and managed services."""
+        token = self.auth_token or "neo4j/password"
+        if "/" in token:
+            username, password = token.split("/", 1)
+            return neo4j.basic_auth(username, password)
+        return neo4j.basic_auth("neo4j", token)
+
+    @property
+    def is_connected(self) -> bool:
+        """Return whether the connection is active."""
+        return self._driver is not None
+
+    def ensure_connected(self) -> None:
+        """Ensure a valid HydraDB driver exists, connecting if needed."""
+        if self._driver is None:
+            self.connect()
+
     def connect(self) -> None:
-        """Establish connection to HydraDB."""
-        self._driver = GraphDatabase.driver(
-            self.uri,
-            auth=neo4j.bearer_auth(self.auth_token),
-        )
+        """Establish a HydraDB connection and validate it."""
+        if self._driver is not None:
+            return
+
+        try:
+            auth = self._build_auth()
+            driver = GraphDatabase.driver(
+                self.uri,
+                auth=auth,
+            )
+            driver.verify_connectivity()
+            self._driver = driver
+        except Exception as exc:  # pragma: no cover - network failure path
+            self._driver = None
+            raise RuntimeError(f"Unable to connect to HydraDB at {self.uri}: {exc}") from exc
 
     def close(self) -> None:
         """Close the connection."""
         if self._driver:
             self._driver.close()
             self._driver = None
+
+    def __enter__(self) -> "HydraDB":
+        self.ensure_connected()
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
 
     def write_fact(self, fact_id: int, content: str) -> None:
         """Write a Fact node to the graph.
@@ -37,6 +74,7 @@ class HydraDB:
         - id property must be an integer for both nodes
         - No MERGE followed by SET
         """
+        self.ensure_connected()
         with self._driver.session() as session:
             # Create two nodes with a relationship between them
             # Using fact_id for the primary node, and fact_id + 1000000 for the anchor
@@ -49,6 +87,7 @@ class HydraDB:
 
     def read_fact(self, fact_id: int) -> dict | None:
         """Read a Fact node by ID."""
+        self.ensure_connected()
         with self._driver.session() as session:
             result = session.run(
                 "MATCH (f:Fact {id: $id}) RETURN f.id, f.content",
@@ -61,6 +100,7 @@ class HydraDB:
 
     def clear_all(self) -> None:
         """Clear all nodes (useful for cleanup)."""
+        self.ensure_connected()
         with self._driver.session() as session:
             session.run("MATCH (n) DELETE n")
 

@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import redis.asyncio as redis
 
+from config import settings
 from db.hydra import HydraDB
 from middleware.rate_limiter import RateLimiterMiddleware
 from middleware.cost_tracker import CostTrackerMiddleware
@@ -30,19 +31,21 @@ async def lifespan(app: FastAPI):
     """Manage application lifecycle."""
     global hydra_client, redis_client
 
-    # Startup
     print("Starting MemoryGraph API...")
 
-    # Connect to HydraDB
-    hydra_client = HydraDB()
+    settings.validate_required()
+    hydra_uri = settings.hydra_uri
+    hydra_token = settings.hydra_token
+    hydra_client = HydraDB(uri=hydra_uri, auth_token=hydra_token)
+
     try:
         hydra_client.connect()
-        print("Connected to HydraDB")
-    except Exception as e:
-        print(f"Warning: Could not connect to HydraDB: {e}")
-        hydra_client = None
+        print(f"Connected to HydraDB at {hydra_uri}")
+    except Exception as exc:
+        raise RuntimeError(
+            "HydraDB is required for MemoryGraph. Set HYDRADB_URI and HYDRADB_TOKEN and ensure the service is running."
+        ) from exc
 
-    # Connect to Redis
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
     try:
         redis_client = redis.from_url(redis_url)
@@ -125,9 +128,10 @@ async def root():
 
 # Dependency to get HydraDB client
 def get_hydra() -> HydraDB:
-    """Get HydraDB client."""
+    """Get the shared HydraDB client."""
     if hydra_client is None:
-        raise RuntimeError("HydraDB not connected")
+        raise RuntimeError("HydraDB is required for MemoryGraph")
+    hydra_client.ensure_connected()
     return hydra_client
 
 

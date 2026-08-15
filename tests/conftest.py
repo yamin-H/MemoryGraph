@@ -24,9 +24,14 @@ def hydradb_client():
     from neo4j import GraphDatabase
 
     uri = os.environ.get("HYDRADB_URI", "neo4j://127.0.0.1:7687")
-    token = os.environ.get("HYDRADB_TOKEN", "local-development-token-32-bytes")
+    token = os.environ.get("HYDRADB_TOKEN", "neo4j/password")
+    if "/" in token:
+        username, password = token.split("/", 1)
+        auth = neo4j.basic_auth(username, password)
+    else:
+        auth = neo4j.basic_auth("neo4j", token)
 
-    driver = GraphDatabase.driver(uri, auth=neo4j.bearer_auth(token))
+    driver = GraphDatabase.driver(uri, auth=auth)
     try:
         with driver.session() as session:
             session.run("MATCH (f:Fact) RETURN count(*) LIMIT 1")
