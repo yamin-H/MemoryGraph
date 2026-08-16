@@ -72,9 +72,20 @@ async def get_metrics() -> dict[str, Any]:
 
     # Graph statistics from HydraDB
     hydra_db = None
+    created_own = False
     try:
-        hydra_db = HydraDB()
-        hydra_db.connect()
+        try:
+            from main import hydra_client
+            if hydra_client and hydra_client.is_connected:
+                hydra_db = hydra_client
+        except Exception:
+            pass
+
+        if hydra_db is None:
+            hydra_db = HydraDB()
+            hydra_db.connect()
+            created_own = True
+
         with hydra_db._driver.session() as session:
             f_res = session.run("MATCH (f:Fact) RETURN count(f)")
             metrics["total_facts_stored"] = f_res.single()[0] or 0
@@ -87,7 +98,7 @@ async def get_metrics() -> dict[str, Any]:
     except Exception:
         pass
     finally:
-        if hydra_db:
+        if hydra_db and created_own:
             try:
                 hydra_db.close()
             except Exception:

@@ -11,12 +11,14 @@ class HydraDB:
 
     def __init__(
         self,
-        uri: str = "neo4j://127.0.0.1:7687",
-        auth_token: str = "neo4j/password",
+        uri: str | None = None,
+        auth_token: str | None = None,
     ):
         """Initialize the HydraDB connection client."""
-        self.uri = uri
-        self.auth_token = auth_token or "neo4j/password"
+        import os
+        from config import settings
+        self.uri = uri or settings.hydra_uri or os.environ.get("HYDRADB_URI", "neo4j://127.0.0.1:7687")
+        self.auth_token = auth_token or settings.hydra_token or os.environ.get("HYDRADB_TOKEN", "neo4j/password")
         self._driver = None
 
     def _build_auth(self):
