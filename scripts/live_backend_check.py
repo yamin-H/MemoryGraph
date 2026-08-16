@@ -1,3 +1,5 @@
+"""Live verification script for local backend services and HydraDB connectivity."""
+
 import json
 import os
 import sys
@@ -13,6 +15,7 @@ from services.memory_service import MemoryService
 
 
 def main() -> None:
+    """Run live ingestion, query, and entity memory tests against local backend."""
     print("Starting live backend verification...")
     db = HydraDB()
     db.connect()

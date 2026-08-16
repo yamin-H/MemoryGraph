@@ -10,107 +10,85 @@ from urllib.request import urlretrieve
 class LongMemEvalDataset:
     """Loader for LongMemEval dataset."""
 
-    REPO_URL = "https://github.com/xiaowu0162/LongMemEval/raw/main/data/LongMemEval.json"
-    CACHE_DIR = Path(__file__).parent.parent.parent.parent.parent / "scripts" / "data"
-    CACHE_FILE = CACHE_DIR / "LongMemEval.json"
+    DATA_DIR = Path(__file__).resolve().parents[4] / "data"
 
-    def __init__(self):
+    FILES = {
+        "oracle": "longmemeval_oracle.json",
+        "s": "longmemeval_s_cleaned.json",
+        "m": "longmemeval_m_cleaned.json",
+    }
+
+    URLS = {
+        "oracle": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_oracle.json",
+        "s": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json",
+        "m": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_m_cleaned.json",
+    }
+
+    def __init__(self, split: str = "oracle"):
+        """Initialize the LongMemEval dataset loader."""
+        if split not in self.FILES:
+            split = "oracle"
+        self.split = split
         self.data: list[dict[str, Any]] = []
         self._loaded = False
 
-    def _download(self) -> Path:
-        """Download dataset if not cached."""
-        self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-        if not self.CACHE_FILE.exists():
-            print(f"Downloading LongMemEval from {self.REPO_URL}...")
-            try:
-                urlretrieve(self.REPO_URL, self.CACHE_FILE)
-                print(f"Downloaded to {self.CACHE_FILE}")
-            except Exception as e:
-                print(f"Download failed: {e}")
-                # Create empty file to prevent repeated attempts
-                self.CACHE_FILE.write_text("[]")
-                raise
-        else:
-            print(f"Using cached LongMemEval at {self.CACHE_FILE}")
-
-        return self.CACHE_FILE
+    def _get_file_path(self) -> Path:
+        """Resolve file path for the given dataset split."""
+        return self.DATA_DIR / self.FILES[self.split]
 
     def load(self) -> list[dict[str, Any]]:
-        """Load and parse LongMemEval dataset into standard format."""
+        """Load and parse dataset."""
         if self._loaded:
             return self.data
 
-        cache_file = self._download()
+        file_path = self._get_file_path()
+        if not file_path.exists():
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            urlretrieve(self.URLS[self.split], str(file_path))
 
         try:
-            with open(cache_file) as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 raw_data = json.load(f)
-        except json.JSONDecodeError:
-            print("Warning: Cache file corrupted, re-downloading...")
-            cache_file.unlink(missing_ok=True)
-            cache_file = self._download()
-            with open(cache_file) as f:
+        except Exception:
+            try:
+                file_path.unlink()
+            except Exception:
+                pass
+            urlretrieve(self.URLS[self.split], str(file_path))
+            with open(file_path, "r", encoding="utf-8") as f:
                 raw_data = json.load(f)
 
-        # Parse into standard format
         self.data = []
         for item in raw_data:
-            # LongMemEval format has: id, question, answer, sessions, question_type
+            q_id = item.get("id") or item.get("question_id", "")
             example = {
-                "question_id": item.get("id", f"lme-{len(self.data):03d}"),
-                "sessions": item.get("sessions", []),
+                "question_id": q_id,
+                "question_type": item.get("question_type", "general"),
                 "question": item.get("question", ""),
                 "answer": item.get("answer", ""),
-                "question_type": item.get("question_type", "single_session"),
+                "question_date": item.get("question_date", ""),
+                "sessions": item.get("sessions", item.get("haystack_sessions", [])),
+                "session_dates": item.get("haystack_dates", item.get("session_dates", [])),
+                "session_ids": item.get("haystack_session_ids", item.get("session_ids", [])),
+                "answer_session_ids": item.get("answer_session_ids", []),
+                "is_abstention": str(q_id).endswith("_abs") or item.get("is_abstention", False),
             }
             self.data.append(example)
 
         self._loaded = True
-        print(f"Loaded {len(self.data)} examples from LongMemEval")
         return self.data
 
     def sample(self, n: int, seed: int = 42) -> list[dict[str, Any]]:
         """Return n random examples."""
         if not self._loaded:
             self.load()
-
         if n >= len(self.data):
             return self.data.copy()
-
-        random.seed(seed)
-        return random.sample(self.data, n)
+        rng = random.Random(seed)
+        return rng.sample(self.data, n)
 
     def get_by_type(self, question_type: str) -> list[dict[str, Any]]:
-        """Get all examples of a specific question type."""
+        """Filter examples by question type."""
         if not self._loaded:
             self.load()
-        return [ex for ex in self.data if ex["question_type"] == question_type]
-
-
-def main():
-    """Test the loader."""
-    dataset = LongMemEvalDataset()
-    examples = dataset.load()
-    print(f"\nTotal examples: {len(examples)}")
-
-    # Show question type distribution
-    from collections import Counter
-    types = Counter(ex["question_type"] for ex in examples)
-    print(f"Question types: {dict(types)}")
-
-    # Show sample
-    sample = dataset.sample(3)
-    print(f"\nSample of 3:")
-    for ex in sample:
-        print(f"  ID: {ex['question_id']}")
-        print(f"  Type: {ex['question_type']}")
-        print(f"  Q: {ex['question']}")
-        print(f"  A: {ex['answer'][:60]}...")
-        print(f"  Sessions: {len(ex['sessions'])}")
-        print()
-
-
-if __name__ == "__main__":
-    main()
+        return [ex for ex in self.data if ex.get("question_type") == question_type]

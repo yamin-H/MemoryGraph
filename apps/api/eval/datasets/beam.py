@@ -10,63 +10,80 @@ from urllib.request import urlretrieve
 class BEAMDataset:
     """Loader for BEAM dataset."""
 
+    DATA_DIR = Path(__file__).resolve().parents[4] / "data"
+    LOCAL_FILE = DATA_DIR / "beam_100k.json"
     REPO_URL = "https://github.com/mohammadtavakoli78/BEAM/raw/main/data/beam.json"
     CACHE_DIR = Path(__file__).parent.parent.parent.parent.parent / "scripts" / "data"
     CACHE_FILE = CACHE_DIR / "beam.json"
 
     def __init__(self):
+        """Initialize the BEAM dataset loader."""
         self.data: list[dict[str, Any]] = []
         self._loaded = False
 
-    def _download(self) -> Path:
-        """Download dataset if not cached."""
+    def _get_file_path(self) -> Path:
+        """Resolve path to local or cached BEAM dataset file."""
+        if self.LOCAL_FILE.exists():
+            return self.LOCAL_FILE
+        if self.CACHE_FILE.exists():
+            return self.CACHE_FILE
+        # Download if neither exists
         self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-        if not self.CACHE_FILE.exists():
-            print(f"Downloading BEAM from {self.REPO_URL}...")
-            try:
-                urlretrieve(self.REPO_URL, self.CACHE_FILE)
-                print(f"Downloaded to {self.CACHE_FILE}")
-            except Exception as e:
-                print(f"Download failed: {e}")
-                self.CACHE_FILE.write_text("[]")
-                raise
-        else:
-            print(f"Using cached BEAM at {self.CACHE_FILE}")
-
-        return self.CACHE_FILE
+        try:
+            urlretrieve(self.REPO_URL, self.CACHE_FILE)
+            return self.CACHE_FILE
+        except Exception:
+            return self.LOCAL_FILE
 
     def load(self) -> list[dict[str, Any]]:
         """Load and parse BEAM dataset into standard format."""
         if self._loaded:
             return self.data
 
-        cache_file = self._download()
+        file_path = self._get_file_path()
+        if not file_path.exists():
+            return []
 
         try:
-            with open(cache_file) as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 raw_data = json.load(f)
-        except json.JSONDecodeError:
-            print("Warning: Cache file corrupted, re-downloading...")
-            cache_file.unlink(missing_ok=True)
-            cache_file = self._download()
-            with open(cache_file) as f:
-                raw_data = json.load(f)
+        except Exception as e:
+            print(f"Error loading BEAM: {e}")
+            return []
 
         # Parse into standard format
-        # BEAM format may differ, adapt as needed
         self.data = []
-        for item in raw_data:
-            # BEAM typically has: question, answer, context (sessions), question_type
-            sessions = item.get("context", item.get("sessions", []))
-            example = {
-                "question_id": item.get("id", f"beam-{len(self.data):03d}"),
-                "sessions": sessions,
-                "question": item.get("question", ""),
-                "answer": item.get("answer", ""),
-                "question_type": item.get("question_type", "temporal"),
-            }
-            self.data.append(example)
+        for item_idx, item in enumerate(raw_data):
+            if "question" in item and "answer" in item:
+                self.data.append({
+                    "question_id": item.get("id") or item.get("question_id", f"beam-{item_idx:03d}"),
+                    "sessions": item.get("context", item.get("sessions", [])),
+                    "question": item.get("question", ""),
+                    "answer": item.get("answer", ""),
+                    "question_type": item.get("question_type", "temporal"),
+                })
+            elif "conversation_seed" in item and "chat" in item:
+                conv_seed = item.get("conversation_seed", {})
+                seed_id = conv_seed.get("id", item_idx + 1)
+                theme = conv_seed.get("title") or conv_seed.get("theme", "Software Development")
+                chat_sessions = item.get("chat", [])
+                
+                for s_idx, sess in enumerate(chat_sessions):
+                    if isinstance(sess, list):
+                        for t_idx in range(0, len(sess) - 1, 2):
+                            user_turn = sess[t_idx]
+                            asst_turn = sess[t_idx + 1] if t_idx + 1 < len(sess) else {}
+                            if user_turn.get("role") == "user":
+                                q_text = user_turn.get("content", "")
+                                clean_q = q_text.split("->->")[0].strip() if "->->" in q_text else q_text.strip()
+                                if clean_q:
+                                    self.data.append({
+                                        "question_id": f"beam_{seed_id}_{s_idx+1}_{t_idx+1}",
+                                        "sessions": chat_sessions,
+                                        "question": clean_q,
+                                        "answer": asst_turn.get("content", theme)[:300],
+                                        "question_type": user_turn.get("question_type") or "agentic-synthesis",
+                                    })
 
         self._loaded = True
         print(f"Loaded {len(self.data)} examples from BEAM")

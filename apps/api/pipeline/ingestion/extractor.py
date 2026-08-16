@@ -1,4 +1,4 @@
-"""Fact extractor using Groq LLM.
+"""Fact extractor using Groq LLM and rule-based fallback.
 
 Extracts structured facts from chat sessions for storage in the memory graph.
 """
@@ -11,34 +11,32 @@ from typing import Any
 from groq import Groq
 
 
-SYSTEM_PROMPT = """You are a fact extraction system. Your job is to identify and extract factual statements from conversations.
+SYSTEM_PROMPT = """You are a fact extraction system for an agent memory layer.
 
-Extract facts that reveal:
-- Personal information (name, location, occupation, preferences)
-- Relationships between entities
-- Events and their attributes
-- Preferences and opinions
+Extract factual statements from conversations that reveal persistent information about the user.
 
-For each fact, provide:
-- content: The factual statement (concise, in third person)
-- entity_name: The primary entity the fact is about
-- entity_type: One of "person", "place", "thing", "concept", "event"
-- confidence: Your confidence in the fact (0.0 to 1.0)
+For each fact provide:
+- content: The factual statement in third person (e.g. "User lives in Dhaka")
+- entity_name: Primary entity (use "User" for the main user)
+- entity_type: One of "person", "place", "organization", "event", "preference"
+- fact_type: One of "location", "occupation", "preference", "relationship", "possession", "belief", "status", "event"
+- confidence: 0.0 to 1.0
 
-Rules:
-- Extract only clear, unambiguous facts
-- Use third person ("Alex lives in Dhaka" not "I live in Dhaka")
-- Each fact should be a single atomic statement
-- Ignore greetings, small talk, and meta-conversation
-- If no facts are found, return an empty list
+CRITICAL RULES:
+- Use "User" as entity_name when referring to the main user
+- Extract ONLY clear, unambiguous facts
+- Each fact must be a single atomic statement
+- Ignore greetings and small talk
+- If no facts found, return empty list
 
-Output must be valid JSON with this structure:
+Output ONLY valid JSON:
 {
   "facts": [
     {
-      "content": "Alex lives in Dhaka",
-      "entity_name": "Alex",
+      "content": "User lives in Dhaka",
+      "entity_name": "User",
       "entity_type": "person",
+      "fact_type": "location",
       "confidence": 0.95
     }
   ]
@@ -47,177 +45,168 @@ Output must be valid JSON with this structure:
 USER_PROMPT_TEMPLATE = """Extract facts from this conversation session.
 
 Session ID: {session_id}
-User ID: {user_id}
-Started at: {started_at}
+Session Date: {session_date}
 
-Messages:
+Conversation:
 {messages}
 
-Return a JSON object with a "facts" array containing extracted facts."""
+Return JSON with extracted facts."""
 
 
-def format_messages(messages: list[dict[str, str]]) -> str:
-    """Format messages for the prompt."""
+def format_messages(turns: list[dict[str, Any]]) -> str:
+    """Format session turns for the prompt."""
     lines = []
-    for msg in messages:
-        role = msg.get("role", "unknown")
-        content = msg.get("content", "")
-        lines.append(f"[{role.upper()}]: {content}")
+    for turn in turns:
+        if not isinstance(turn, dict):
+            continue
+        role = turn.get("role", "unknown").upper()
+        content = turn.get("content", "")
+        if content:
+            lines.append(f"[{role}]: {content}")
     return "\n".join(lines)
 
 
-def _fallback_facts_from_text(session: dict[str, Any]) -> list[dict[str, Any]]:
-    """Recover deterministic facts from the session text when the LLM returns empty output."""
-    session_id = session.get("session_id", "unknown")
+def truncate_turns(
+    turns: list[dict[str, Any]], 
+    max_chars: int = 3000
+) -> list[dict[str, Any]]:
+    """Truncate session to fit within token limits."""
+    result = []
+    total = 0
+    for turn in turns:
+        if not isinstance(turn, dict):
+            continue
+        content = turn.get("content", "")
+        if total + len(content) > max_chars:
+            remaining = max_chars - total
+            if remaining > 100:
+                truncated_turn = dict(turn)
+                truncated_turn["content"] = content[:remaining] + "..."
+                result.append(truncated_turn)
+            break
+        result.append(turn)
+        total += len(content)
+    return result
+
+
+def _rule_based_fallback_facts(session: dict[str, Any]) -> list[dict[str, Any]]:
+    """Fallback fact extractor when LLM returns no facts or is unavailable."""
     messages = session.get("messages", [])
-    combined = " ".join(msg.get("content", "") for msg in messages if isinstance(msg, dict))
-    if not combined.strip():
+    session_id = session.get("session_id", "session-0")
+    user_id = session.get("user_id", "User")
+    
+    facts = []
+    all_user_text = " ".join(
+        m.get("content", "") for m in messages if isinstance(m, dict) and m.get("role") == "user"
+    )
+    if not all_user_text:
         return []
 
-    text = combined.replace("—", " ").replace("–", " ")
-    text = re.sub(r"\s+", " ", text).strip()
+    # Detect Name
+    name = user_id if user_id and user_id.lower() != "user" else "User"
+    name_match = re.search(r"\b(?:I'm|I am|name is)\s+([A-Z][a-z]+)", all_user_text)
+    if name_match:
+        name = name_match.group(1)
 
-    name = "Alex"
-    for pattern in [
-        r"\bI\s+am\s+([A-Z][a-zA-Z\-]+)\b",
-        r"\bI'm\s+([A-Z][a-zA-Z\-]+)\b",
-        r"\bmy\s+name\s+is\s+([A-Z][a-zA-Z\-]+)\b",
-    ]:
-        match = re.search(pattern, text, flags=re.IGNORECASE)
-        if match:
-            name = match.group(1).strip()
-            break
-    if "Alex" in text and name == "Alex":
-        name = "Alex"
-
-    facts: list[dict[str, Any]] = []
-
-    location_match = re.search(
-        r"\b(?:I|we)\s+live\s+in\s+([A-Z][A-Za-z\s\-]+?)(?=(?:\.|,|\s+and\s+|\s+with\s+|\s+while\s+|\s+but\s+|$))",
-        text,
-        flags=re.IGNORECASE,
-    )
-    if location_match:
-        location = location_match.group(1).strip()
+    # 1. Location
+    loc_match = re.search(r"(?:live in|moved to|living in|located in)\s+([A-Za-z\s]+?)(?=[.,;]| and | with | for |$)", all_user_text, re.IGNORECASE)
+    if loc_match:
+        loc = loc_match.group(1).strip()
         facts.append({
             "fact_id": str(uuid.uuid4()),
-            "content": f"{name} lives in {location}",
+            "content": f"{name} lives in {loc}",
             "entity_name": name,
             "entity_type": "person",
+            "fact_type": "location",
             "confidence": 0.9,
             "session_id": session_id,
+            "is_current": True,
         })
 
-    role_match = re.search(
-        r"\b(?:I|we)\s+work(?:ing)?\s+(?:as|in)\s+(?:a\s+)?([A-Za-z][A-Za-z\s\-]+?)(?=(?:\.|,|\s+and\s+|\s+at\s+|\s+for\s+|\s+while\s+|\s+because\s+|$))",
-        text,
-        flags=re.IGNORECASE,
-    )
-    if role_match:
-        role = role_match.group(1).strip()
-    else:
-        role = None
-        for pattern in [
-            r"\bwork\s+as\s+(?:a\s+)?([A-Za-z][A-Za-z\s\-]+?)(?=(?:\.|,|\s+and\s+|\s+at\s+|\s+for\s+|$))",
-            r"\bworking\s+as\s+(?:a\s+)?([A-Za-z][A-Za-z\s\-]+?)(?=(?:\.|,|\s+and\s+|\s+at\s+|\s+for\s+|$))",
-        ]:
-            match = re.search(pattern, text, flags=re.IGNORECASE)
-            if match:
-                role = match.group(1).strip()
-                break
-
-    if role and role.lower() not in {"a", "an", "the"}:
+    # 2. Occupation
+    job_match = re.search(r"(?:work as a|work as an|working as|employed as|job as)\s+([A-Za-z\s]+?)(?=[.,;]| and | at | for |$)", all_user_text, re.IGNORECASE)
+    if job_match:
+        job = job_match.group(1).strip()
         facts.append({
             "fact_id": str(uuid.uuid4()),
-            "content": f"{name} works as a {role}",
+            "content": f"{name} works as a {job}",
             "entity_name": name,
             "entity_type": "person",
+            "fact_type": "occupation",
             "confidence": 0.9,
             "session_id": session_id,
+            "is_current": True,
         })
 
-    pet_match = re.search(
-        r"\b(?:I|we)\s+have\s+(?:a\s+)?(?:dog|cat|pet)\s+named\s+([A-Z][A-Za-z]+)\b",
-        text,
-        flags=re.IGNORECASE,
-    )
+    # 3. Pet / Possession
+    pet_match = re.search(r"(?:have a|own a|got a)\s+([A-Za-z\s]+?)\s+(?:named|called)\s+([A-Za-z]+)", all_user_text, re.IGNORECASE)
     if pet_match:
-        pet = pet_match.group(1).strip()
+        pet_type = pet_match.group(1).strip()
+        pet_name = pet_match.group(2).strip()
         facts.append({
             "fact_id": str(uuid.uuid4()),
-            "content": f"{name} has a dog named {pet}",
+            "content": f"{name} has a {pet_type} named {pet_name}",
             "entity_name": name,
             "entity_type": "person",
+            "fact_type": "possession",
             "confidence": 0.9,
             "session_id": session_id,
+            "is_current": True,
         })
 
-    hobby_match = re.search(
-        r"\b(?:I|we)\s+enjoy\s+([A-Za-z][A-Za-z\s\-]+?)(?=(?:\.|,|\s+and\s+|\s+with\s+|$))",
-        text,
-        flags=re.IGNORECASE,
-    )
+    # 4. Hobbies / Preference
+    hobby_match = re.search(r"(?:enjoy|love|like)\s+([A-Za-z\s]+?)(?=[.,;]| and | on |$)", all_user_text, re.IGNORECASE)
     if hobby_match:
         hobby = hobby_match.group(1).strip()
-        if hobby and hobby.lower() not in {"a", "an", "the"}:
+        if len(hobby) > 2:
             facts.append({
                 "fact_id": str(uuid.uuid4()),
                 "content": f"{name} enjoys {hobby}",
                 "entity_name": name,
                 "entity_type": "person",
-                "confidence": 0.7,
+                "fact_type": "preference",
+                "confidence": 0.85,
                 "session_id": session_id,
+                "is_current": True,
             })
 
-    if not facts:
-        facts.append({
-            "fact_id": str(uuid.uuid4()),
-            "content": f"{name} is a user of the system",
-            "entity_name": name,
-            "entity_type": "person",
-            "confidence": 0.5,
-            "session_id": session_id,
-        })
-
-    deduped: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for fact in facts:
-        key = fact["content"].lower()
-        if key not in seen:
-            deduped.append(fact)
-            seen.add(key)
-    return deduped
+    return facts
 
 
 def extract_facts(
-    client: Groq,
+    client: Any,
     session: dict[str, Any],
     model: str = "llama-3.1-8b-instant",
 ) -> list[dict[str, Any]]:
-    """Extract structured facts from a chat session.
+    """Extract structured facts from a session payload.
 
     Args:
-        client: Groq client instance
-        session: Session dict with session_id, user_id, started_at, and messages
-        model: Groq model to use (default: gpt-oss-20b)
+        client: Groq client (or mock)
+        session: Dict with session_id, user_id, started_at, messages
+        model: LLM model name
 
     Returns:
-        List of extracted facts with fact_id, content, entity_name,
-        entity_type, confidence, and session_id
+        List of extracted fact dictionaries with UUIDs
     """
-    session_id = session.get("session_id", "unknown")
-    user_id = session.get("user_id", "unknown")
-    started_at = session.get("started_at", "unknown")
-    messages = session.get("messages", [])
+    if not session or not isinstance(session, dict):
+        return []
 
+    messages = session.get("messages", [])
     if not messages:
         return []
 
+    session_id = session.get("session_id", str(uuid.uuid4()))
+    session_date = session.get("started_at", "")
+
+    # If client is not available, run rule-based fallback
+    if client is None:
+        return _rule_based_fallback_facts(session)
+
+    truncated_turns = truncate_turns(messages, max_chars=3000)
     user_prompt = USER_PROMPT_TEMPLATE.format(
         session_id=session_id,
-        user_id=user_id,
-        started_at=started_at,
-        messages=format_messages(messages),
+        session_date=session_date or "recent",
+        messages=format_messages(truncated_turns)
     )
 
     try:
@@ -234,85 +223,73 @@ def extract_facts(
 
         content = response.choices[0].message.content
         if not content:
-            return _fallback_facts_from_text(session)
+            return _rule_based_fallback_facts(session)
 
         result = json.loads(content)
         raw_facts = result.get("facts", [])
-        if not raw_facts:
-            return _fallback_facts_from_text(session)
 
-        # Add fact_id and session_id to each fact
+        if not raw_facts:
+            return _rule_based_fallback_facts(session)
+
         extracted = []
         for fact in raw_facts:
+            if not fact.get("content"):
+                continue
             extracted.append({
                 "fact_id": str(uuid.uuid4()),
                 "content": fact.get("content", ""),
-                "entity_name": fact.get("entity_name", ""),
-                "entity_type": fact.get("entity_type", "concept"),
-                "confidence": fact.get("confidence", 0.5),
+                "entity_name": fact.get("entity_name", session.get("user_id", "User")),
+                "entity_type": fact.get("entity_type", "person"),
+                "fact_type": fact.get("fact_type", "status"),
+                "confidence": float(fact.get("confidence", 0.9)),
                 "session_id": session_id,
+                "session_date": session_date,
+                "is_current": True,
             })
 
         return extracted
 
-    except json.JSONDecodeError:
-        return _fallback_facts_from_text(session)
-    except Exception:
-        return _fallback_facts_from_text(session)
+    except Exception as e:
+        # Fallback to rule-based parser on any LLM or JSON failure
+        fallback = _rule_based_fallback_facts(session)
+        return fallback
 
 
-def main():
-    """Test the fact extractor with a sample session."""
-    import os
-    from pathlib import Path
-
-    # Load .env file
-    from dotenv import load_dotenv
-    env_path = Path(__file__).parent.parent.parent.parent.parent / ".env"
-    load_dotenv(env_path)
-
-    # Check for API key
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        print("Error: GROQ_API_KEY not found in .env file")
-        print(f"Checked: {env_path}")
-        return
-
-    client = Groq(api_key=api_key)
-
-    # Sample session
+def extract_facts_from_session(
+    client: Groq,
+    session_turns: list[dict[str, Any]],
+    session_index: int,
+    session_date: str = "",
+    model: str = "llama-3.1-8b-instant",
+) -> list[dict[str, Any]]:
+    """Extract structured facts from a LongMemEval session."""
     session = {
-        "session_id": "session-001",
-        "user_id": "alex-user",
-        "started_at": "2024-01-15T10:30:00Z",
-        "messages": [
-            {"role": "user", "content": "Hi, I'm Alex and I live in Dhaka."},
-            {"role": "assistant", "content": "Nice to meet you, Alex! Dhaka is a vibrant city. How do you like living there?"},
-            {"role": "user", "content": "I love it here. I work as a software engineer at a tech startup."},
-            {"role": "assistant", "content": "That sounds exciting! What kind of projects are you working on?"},
-            {"role": "user", "content": "We're building an AI-powered memory system. By the way, I have a cat named Pixel who keeps me company while coding."},
-            {"role": "assistant", "content": "Pixel sounds like a great coding companion! Cats are wonderful pets."},
-        ],
+        "session_id": f"session-{session_index}",
+        "started_at": session_date,
+        "messages": session_turns,
     }
-
-    print("Extracting facts from session...")
-    print(f"Session ID: {session['session_id']}")
-    print(f"Messages: {len(session['messages'])}")
-    print()
-
-    facts = extract_facts(client, session)
-
-    print(f"Extracted {len(facts)} facts:")
-    print()
-    for i, fact in enumerate(facts, 1):
-        print(f"Fact {i}:")
-        print(f"  ID: {fact['fact_id']}")
-        print(f"  Content: {fact['content']}")
-        print(f"  Entity: {fact['entity_name']} ({fact['entity_type']})")
-        print(f"  Confidence: {fact['confidence']}")
-        print(f"  Session: {fact['session_id']}")
-        print()
+    return extract_facts(client=client, session=session, model=model)
 
 
-if __name__ == "__main__":
-    main()
+def extract_facts_from_example(
+    client: Groq,
+    example: dict[str, Any],
+    model: str = "llama-3.1-8b-instant",
+) -> list[dict[str, Any]]:
+    """Extract facts from a full LongMemEval example across all sessions."""
+    sessions = example.get("sessions", [])
+    session_dates = example.get("session_dates", [])
+
+    all_facts = []
+    for idx, session_turns in enumerate(sessions):
+        session_date = session_dates[idx] if idx < len(session_dates) else ""
+        facts = extract_facts_from_session(
+            client=client,
+            session_turns=session_turns,
+            session_index=idx,
+            session_date=session_date,
+            model=model,
+        )
+        all_facts.extend(facts)
+
+    return all_facts

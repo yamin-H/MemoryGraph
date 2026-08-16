@@ -9,6 +9,7 @@ class Mem0Baseline:
     """Mem0 baseline using mem0 Memory class."""
 
     def __init__(self, groq_api_key: str | None = None):
+        """Initialize the Mem0 baseline memory system."""
         self.groq_api_key = groq_api_key or os.environ.get("GROQ_API_KEY")
         self._memory = None
 

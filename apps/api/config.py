@@ -15,6 +15,7 @@ class Settings:
     """Strongly typed application settings for the backend."""
 
     def __init__(self) -> None:
+        """Initialize settings from environment variables."""
         self.hydra_uri = os.environ.get("HYDRADB_URI", "neo4j://127.0.0.1:7687")
         self.hydra_token = os.environ.get("HYDRADB_TOKEN", "neo4j/password")
         self.redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")

@@ -14,6 +14,7 @@ class VectorBaseline:
     """Vector similarity baseline using pgvector."""
 
     def __init__(self, postgres_url: str | None = None, groq_api_key: str | None = None):
+        """Initialize the vector baseline with PostgreSQL/pgvector backend."""
         self.postgres_url = postgres_url or os.environ.get("POSTGRES_URL", "postgresql://localhost:5432/memorygraph_baseline")
         self.groq_api_key = groq_api_key or os.environ.get("GROQ_API_KEY")
         self._conn = None

@@ -38,6 +38,7 @@ def build_sessions() -> list[dict]:
     session_id = 0
 
     def add(days_offset: int, messages: list[tuple[str, str]]):
+        """Append a timestamped multi-turn conversational session."""
         nonlocal session_id
         session_id += 1
         ts = start + timedelta(days=days_offset)
@@ -331,6 +332,7 @@ def build_questions() -> list[dict]:
 # ── Fixture writing ─────────────────────────────────────────────────────────
 
 def write_fixtures(sessions: list[dict], questions: list[dict]) -> None:
+    """Save synthetic session and question datasets to disk in tests/fixtures."""
     FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
     SESSIONS_FILE.write_text(json.dumps({"sessions": sessions}, indent=2))
     QUESTIONS_FILE.write_text(json.dumps({"questions": questions}, indent=2))
@@ -345,11 +347,9 @@ def run_ingestion(sessions: list[dict]) -> dict:
     from apps.api.pipeline.graph import run_pipeline
     from apps.api.db.hydra import HydraDB
 
-    import os
-    uri = os.environ.get("HYDRADB_URI", "neo4j://127.0.0.1:7687")
-    token = os.environ.get("HYDRADB_TOKEN", "local-development-token-32-bytes")
+    from apps.api.config import settings
 
-    db = HydraDB(uri=uri, auth_token=token)
+    db = HydraDB(uri=settings.hydra_uri, auth_token=settings.hydra_token)
     db.connect()
 
     facts_stored = 0
@@ -386,6 +386,7 @@ def run_ingestion(sessions: list[dict]) -> dict:
 
 
 def main():
+    """CLI entrypoint to generate fixtures and optionally seed HydraDB."""
     parser = argparse.ArgumentParser(description="Seed demo data for MemoryGraph")
     parser.add_argument("--run", action="store_true",
                         help="Also ingest fixtures into HydraDB")

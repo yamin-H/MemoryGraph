@@ -14,6 +14,7 @@ class HydraDB:
         uri: str = "neo4j://127.0.0.1:7687",
         auth_token: str = "neo4j/password",
     ):
+        """Initialize the HydraDB connection client."""
         self.uri = uri
         self.auth_token = auth_token or "neo4j/password"
         self._driver = None
@@ -41,17 +42,34 @@ class HydraDB:
         if self._driver is not None:
             return
 
-        try:
-            auth = self._build_auth()
-            driver = GraphDatabase.driver(
-                self.uri,
-                auth=auth,
-            )
-            driver.verify_connectivity()
-            self._driver = driver
-        except Exception as exc:  # pragma: no cover - network failure path
-            self._driver = None
-            raise RuntimeError(f"Unable to connect to HydraDB at {self.uri}: {exc}") from exc
+        auth = self._build_auth()
+        candidate_uris = [self.uri]
+        if self.uri.startswith("neo4j://"):
+            candidate_uris.append(self.uri.replace("neo4j://", "bolt://", 1))
+        elif self.uri.startswith("bolt://"):
+            candidate_uris.append(self.uri.replace("bolt://", "neo4j://", 1))
+
+        last_exc = None
+        for uri in candidate_uris:
+            try:
+                driver = GraphDatabase.driver(
+                    uri,
+                    auth=auth,
+                )
+                driver.verify_connectivity()
+                self._driver = driver
+                self.uri = uri
+                return
+            except Exception as exc:
+                last_exc = exc
+                if driver:
+                    try:
+                        driver.close()
+                    except Exception:
+                        pass
+
+        self._driver = None
+        raise RuntimeError(f"Unable to connect to HydraDB at {self.uri}: {last_exc}") from last_exc
 
     def close(self) -> None:
         """Close the connection."""
@@ -60,10 +78,12 @@ class HydraDB:
             self._driver = None
 
     def __enter__(self) -> "HydraDB":
+        """Context manager entry, ensuring connection is initialized."""
         self.ensure_connected()
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
+        """Context manager exit, closing open connection."""
         self.close()
 
     def write_fact(self, fact_id: int, content: str) -> None:

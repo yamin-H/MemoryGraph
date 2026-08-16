@@ -13,9 +13,11 @@ class CostTrackerMiddleware:
     """
 
     def __init__(self, app):
+        """Initialize the cost and latency tracking middleware."""
         self.app = app
 
     async def __call__(self, scope, receive, send):
+        """Intercept HTTP requests to record latency and endpoint invocation metrics."""
         # Only handle HTTP requests
         if scope["type"] != "http":
             await self.app(scope, receive, send)
@@ -36,6 +38,7 @@ class CostTrackerMiddleware:
         status_code = None
 
         async def send_wrapper(message):
+            """ASGI send wrapper to intercept HTTP response status and body."""
             nonlocal sent_response, status_code
             if message["type"] == "http.response.start":
                 status_code = message["status"]

@@ -19,6 +19,7 @@ class QueryRequest(BaseModel):
 
     @classmethod
     def validate_question(cls, value: str) -> str:
+        """Validate that the query question string is non-empty."""
         if not value or not value.strip():
             raise ValueError("question must not be empty")
         return value.strip()
@@ -51,41 +52,56 @@ async def query_stream(request: QueryRequest) -> StreamingResponse:
     """
     import json
     import asyncio
+    import os
+    from groq import Groq
+    from pipeline.retrieval.parser import parse_question
 
     async def generate():
+        """Asynchronous SSE generator for query traversal and generation stages."""
         # Step 1: Parsing
-        yield f"data: {json.dumps({'event': 'status', 'message': 'Parsing question...'})}\n\n"
-        await asyncio.sleep(0.1)
+        yield f"data: {json.dumps({'event': 'status', 'message': 'Parsing natural language question...'})}\n\n"
+        await asyncio.sleep(0.05)
 
-        # Run the pipeline
-        result = service.query_memory(request.question, user_id=request.user_id)
-        parsed = {"entity_name": None, "question_type": "current_fact"}
-        answer = result
+        # Parse entity & intent dynamically
+        entity_name = None
+        q_type = "current_fact"
+        api_key = os.environ.get("GROQ_API_KEY")
+        if api_key:
+            try:
+                client = Groq(api_key=api_key)
+                parsed = parse_question(client, request.question)
+                entity_name = parsed.get("entity_name")
+                q_type = parsed.get("question_type", "current_fact")
+            except Exception:
+                pass
 
         # Step 2: Entity identified
-        yield f"data: {json.dumps({'event': 'entity', 'entity': parsed.get('entity_name'), 'type': parsed.get('question_type')})}\n\n"
-        await asyncio.sleep(0.1)
+        yield f"data: {json.dumps({'event': 'entity', 'entity': entity_name, 'type': q_type})}\n\n"
+        await asyncio.sleep(0.05)
 
         # Step 3: Traversing
-        yield f"data: {json.dumps({'event': 'status', 'message': 'Traversing memory graph...'})}\n\n"
-        await asyncio.sleep(0.1)
+        yield f"data: {json.dumps({'event': 'status', 'message': 'Traversing HydraDB memory graph...'})}\n\n"
+        await asyncio.sleep(0.05)
+
+        # Run the full memory pipeline
+        result = service.query_memory(request.question, user_id=request.user_id)
 
         # Step 4: Facts found
-        facts_count = result.get("answer", {}).get("facts_examined", 0)
+        facts_count = result.get("facts_examined", len(result.get("source_sessions", [])))
         yield f"data: {json.dumps({'event': 'facts', 'count': facts_count})}\n\n"
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.05)
 
-        # Step 5: Temporal filter
-        yield f"data: {json.dumps({'event': 'status', 'message': 'Applying temporal filter...'})}\n\n"
-        await asyncio.sleep(0.1)
+        # Step 5: Temporal filter & supersedence resolution
+        yield f"data: {json.dumps({'event': 'status', 'message': 'Evaluating temporal recency and fact supersedence...'})}\n\n"
+        await asyncio.sleep(0.05)
 
-        # Step 6: Confidence
-        confidence = answer.get("confidence", 0) * 100
+        # Step 6: Confidence calculation
+        confidence = round((result.get("confidence", 0.0) or 0.0) * 100, 1)
         yield f"data: {json.dumps({'event': 'confidence', 'score': confidence})}\n\n"
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.05)
 
-        # Step 7: Answer
-        yield f"data: {json.dumps({'event': 'answer', 'answer': answer.get('answer'), 'abstained': answer.get('abstained')})}\n\n"
+        # Step 7: Final Answer
+        yield f"data: {json.dumps({'event': 'answer', 'answer': result.get('answer'), 'abstained': result.get('abstained', False), 'source_sessions': result.get('source_sessions', []), 'reasoning': result.get('reasoning', '')})}\n\n"
 
         # Done
         yield f"data: {json.dumps({'event': 'done'})}\n\n"

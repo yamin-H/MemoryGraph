@@ -18,6 +18,11 @@ services:
       - hydradb_logs:/logs
       - hydradb_import:/var/lib/neo4j/import
       - hydradb_plugins:/plugins
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p password 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -28,6 +33,64 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: memorygraph-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: memorygraph_baseline
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d memorygraph_baseline"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: memorygraph-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      HYDRADB_URI: neo4j://hydradb:7687
+      HYDRADB_TOKEN: neo4j/password
+      REDIS_URL: redis://redis:6379
+      POSTGRES_URL: postgresql://postgres:password@postgres:5432/memorygraph_baseline
+      GROQ_API_KEY: ${GROQ_API_KEY}
+    depends_on:
+      hydradb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: memorygraph-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000
+    depends_on:
+      - api
 
 volumes:
   hydradb_data:
@@ -35,3 +98,4 @@ volumes:
   hydradb_import:
   hydradb_plugins:
   redis_data:
+  postgres_data:

@@ -48,24 +48,51 @@ async def health_check() -> dict[str, Any]:
         "groq": "ok",
     }
 
-    driver = get_hydra()
-    redis_client = await get_redis()
+    facts_stored = 0
+    sessions_ingested = 0
+    entities_tracked = 0
+    avg_query_latency_ms = 0.0
 
-    # Check HydraDB
+    # Check HydraDB & Fetch graph counts with single session
+    hydra_db = None
     try:
-        with driver.session() as session:
-            session.run("MATCH (f:Fact) RETURN count(*)")
+        hydra_db = HydraDB()
+        hydra_db.connect()
+        with hydra_db._driver.session() as session:
+            f_res = session.run("MATCH (f:Fact) RETURN count(f)")
+            facts_stored = f_res.single()[0] or 0
+
+            s_res = session.run("MATCH (s:Session) RETURN count(s)")
+            sessions_ingested = s_res.single()[0] or 0
+
+            e_res = session.run("MATCH (e:Entity) RETURN count(e)")
+            entities_tracked = e_res.single()[0] or 0
     except Exception as e:
         print(f"HydraDB health check error: {e}")
         status["hydradb"] = "error"
     finally:
-        driver.close()
+        if hydra_db:
+            try:
+                hydra_db.close()
+            except Exception:
+                pass
 
     # Check Redis
+    redis_client = None
     try:
+        redis_client = await get_redis()
         await redis_client.ping()
+        latency_data = await redis_client.get("metrics:avg_query_latency_ms")
+        if latency_data:
+            avg_query_latency_ms = float(latency_data)
     except Exception:
         status["redis"] = "error"
+    finally:
+        if redis_client:
+            try:
+                await redis_client.close()
+            except Exception:
+                pass
 
     # Check Groq
     try:
@@ -82,41 +109,14 @@ async def health_check() -> dict[str, Any]:
     except Exception:
         status["groq"] = "error"
 
-    # Get statistics from HydraDB
-    facts_stored = 0
-    sessions_ingested = 0
-    entities_tracked = 0
-
-    driver = get_hydra()
-    try:
-        with driver.session() as session:
-            # Count facts
-            result = session.run("MATCH (f:Fact) RETURN f.id")
-            facts_stored = len(list(result))
-
-            # Count sessions
-            result = session.run("MATCH (s:Session) RETURN s.id")
-            sessions_ingested = len(list(result))
-
-            # Count entities
-            result = session.run("MATCH (e:Entity) RETURN e.id")
-            entities_tracked = len(list(result))
-    except Exception:
-        pass
-    finally:
-        driver.close()
-
-    # Get average query latency from Redis
-    avg_query_latency_ms = 0
-    try:
-        latency_data = await redis_client.get("metrics:avg_query_latency_ms")
-        if latency_data:
-            avg_query_latency_ms = float(latency_data)
-    except Exception:
-        pass
-
     return {
-        **status,
+        "status": "ok" if all(v == "ok" for v in status.values()) else "degraded",
+        "services": {
+            "api": {"status": status.get("api", "ok")},
+            "hydradb": {"status": status.get("hydradb", "ok")},
+            "redis": {"status": status.get("redis", "ok")},
+            "groq": {"status": status.get("groq", "ok")},
+        },
         "facts_stored": facts_stored,
         "sessions_ingested": sessions_ingested,
         "entities_tracked": entities_tracked,
