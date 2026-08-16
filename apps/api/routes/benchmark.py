@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import time
+import urllib.request
 import uuid
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,13 @@ from eval.scorer import exact_match, contains_answer, score_example
 router = APIRouter()
 
 DATA_DIR = Path(__file__).resolve().parents[3] / "data"
+
+# HuggingFace public URLs for real LongMemEval datasets
+HUGGINGFACE_URLS: dict[str, str] = {
+    "longmemeval": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_oracle.json",
+    "longmemeval_s": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json",
+    "longmemeval_m": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_m_cleaned.json",
+}
 
 DATASET_CONFIG = {
     "longmemeval": {
@@ -114,35 +122,59 @@ def _normalize_beam_dataset(raw_data: list[dict[str, Any]]) -> list[dict[str, An
     return normalized_samples
 
 
+def _fetch_from_huggingface(dataset_id: str) -> list[dict[str, Any]]:
+    """Download real dataset samples from HuggingFace at runtime."""
+    url = HUGGINGFACE_URLS.get(dataset_id)
+    if not url:
+        return []
+    print(f"[Benchmark] Downloading real dataset '{dataset_id}' from HuggingFace...")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "MemoryGraph-Benchmark/1.0"})
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        if dataset_id == "beam":
+            data = _normalize_beam_dataset(data)
+        print(f"[Benchmark] Downloaded {len(data)} real samples for '{dataset_id}'.")
+        return data
+    except Exception as exc:
+        print(f"[Benchmark] HuggingFace download failed for '{dataset_id}': {exc}")
+        return []
+
+
 def load_dataset_file(dataset_id: str) -> list[dict[str, Any]]:
-    """Load and parse dataset JSON file from data directory."""
+    """Load and parse dataset JSON file from data directory, or fetch from HuggingFace."""
     if dataset_id in _dataset_cache:
         return _dataset_cache[dataset_id]
 
     cfg = DATASET_CONFIG.get(dataset_id)
     if not cfg:
-        # Fallback to default
         cfg = DATASET_CONFIG["longmemeval"]
 
+    # Try local file first
     file_path = DATA_DIR / cfg["file"]
     if not file_path.exists():
-        # Search parent or current dir
         alt_path = Path("data") / cfg["file"]
         if alt_path.exists():
             file_path = alt_path
         else:
-            return []
+            file_path = None
 
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+    if file_path is not None:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
             if dataset_id == "beam":
                 data = _normalize_beam_dataset(data)
             _dataset_cache[dataset_id] = data
             return data
-    except Exception as e:
-        print(f"Error loading dataset {dataset_id}: {e}")
-        return []
+        except Exception as e:
+            print(f"Error loading local dataset {dataset_id}: {e}")
+
+    # Fall back: download from HuggingFace (real data, not synthetic)
+    data = _fetch_from_huggingface(dataset_id)
+    if data:
+        _dataset_cache[dataset_id] = data
+    return data
 
 
 @router.get("/datasets")
@@ -341,8 +373,12 @@ async def get_benchmark_results() -> dict[str, Any]:
     return matrix
 
 
+
 async def run_benchmark_job(job_id: str, redis_client: redis.Redis):
-    """Run real sample evaluation job in background."""
+    """Run real LongMemEval sample evaluation job in background.
+
+    Downloads real dataset samples from HuggingFace if not cached locally.
+    """
     results = {
         "job_id": job_id,
         "status": "running",
@@ -350,13 +386,49 @@ async def run_benchmark_job(job_id: str, redis_client: redis.Redis):
         "tests": [],
     }
 
-    # Load 5 sample questions from longmemeval_oracle.json
+    # Load 5 real samples from LongMemEval Oracle (downloads from HuggingFace if not local)
     samples = load_dataset_file("longmemeval")[:5]
-    for i, s in enumerate(samples):
+    if not samples:
+        results["status"] = "failed"
+        results["error"] = "Could not load real LongMemEval dataset from local storage or HuggingFace."
+        benchmark_results[job_id] = results
+        return
+
+    print(f"[Benchmark {job_id}] Running evaluation on {len(samples)} real LongMemEval samples.")
+
+    for s in samples:
         q = s.get("question", "")
         gt = s.get("answer", "")
+
+        # Ingest haystack sessions into HydraDB before retrieval
+        haystack = s.get("haystack_sessions", [])
+        sess_ids = s.get("haystack_session_ids", [])
+        sess_dates = s.get("haystack_dates", [])
+        for idx, msgs in enumerate(haystack):
+            sess_id = sess_ids[idx] if idx < len(sess_ids) else f"bench-{s.get('question_id')}-{idx}"
+            sess_date = sess_dates[idx] if idx < len(sess_dates) else "2024-01-01T00:00:00Z"
+            formatted = []
+            for m in msgs:
+                if isinstance(m, dict):
+                    formatted.append({"role": m.get("role", "user"), "content": m.get("content", "")})
+                elif isinstance(m, str):
+                    formatted.append({"role": "user", "content": m})
+            try:
+                run_pipeline({
+                    "session_id": sess_id,
+                    "user_id": "bench-user",
+                    "started_at": sess_date,
+                    "messages": formatted,
+                })
+            except Exception as exc:
+                print(f"[Benchmark {job_id}] Ingest error for session {sess_id}: {exc}")
+
         start_t = time.time()
-        ret = run_retrieval(q)
+        try:
+            ret = run_retrieval(q)
+        except Exception as exc:
+            print(f"[Benchmark {job_id}] Retrieval error for question {s.get('question_id')}: {exc}")
+            ret = {"answer": {"answer": "", "abstained": False, "confidence": 0.0}}
         duration_ms = int((time.time() - start_t) * 1000)
         pred = ret.get("answer", {}).get("answer", "")
         results["tests"].append({
