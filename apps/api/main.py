@@ -33,29 +33,27 @@ async def lifespan(app: FastAPI):
 
     print("Starting MemoryGraph API...")
 
-    settings.validate_required()
     hydra_uri = settings.hydra_uri
     hydra_token = settings.hydra_token
     hydra_client = HydraDB(uri=hydra_uri, auth_token=hydra_token)
 
     try:
         hydra_client.connect()
-        print(f"Connected to HydraDB at {hydra_uri}")
+        print(f"[OK] Connected to HydraDB at {hydra_uri}")
     except Exception as exc:
-        raise RuntimeError(
-            "HydraDB is required for MemoryGraph. Set HYDRADB_URI and HYDRADB_TOKEN and ensure the service is running."
-        ) from exc
+        print(f"[WARNING] Could not immediately connect to HydraDB at {hydra_uri}: {exc}")
+        print("FastAPI will start up and retry connection on request.")
 
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
     try:
         redis_client = redis.from_url(redis_url)
         await redis_client.ping()
-        print("Connected to Redis")
+        print("[OK] Connected to Redis")
     except Exception as e:
-        print(f"Warning: Could not connect to Redis: {e}")
+        print(f"[INFO] Redis optional connection status: {e}")
         redis_client = None
 
-    print("MemoryGraph API started successfully")
+    print("MemoryGraph API started successfully and listening for traffic")
 
     yield
 

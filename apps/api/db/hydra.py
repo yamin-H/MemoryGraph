@@ -44,7 +44,11 @@ class HydraDB:
 
         auth = self._build_auth()
         candidate_uris = [self.uri]
-        if self.uri.startswith("neo4j://"):
+        if self.uri.startswith("neo4j+s://"):
+            candidate_uris.append(self.uri.replace("neo4j+s://", "bolt+s://", 1))
+        elif self.uri.startswith("bolt+s://"):
+            candidate_uris.append(self.uri.replace("bolt+s://", "neo4j+s://", 1))
+        elif self.uri.startswith("neo4j://"):
             candidate_uris.append(self.uri.replace("neo4j://", "bolt://", 1))
         elif self.uri.startswith("bolt://"):
             candidate_uris.append(self.uri.replace("bolt://", "neo4j://", 1))
