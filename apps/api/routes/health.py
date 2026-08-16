@@ -81,6 +81,7 @@ async def health_check() -> dict[str, Any]:
     except Exception as e:
         print(f"HydraDB health check error: {e}")
         status["hydradb"] = "error"
+        status["hydradb_error"] = str(e)
     finally:
         if hydra_db and created_own:
             try:
@@ -120,11 +121,15 @@ async def health_check() -> dict[str, Any]:
     except Exception:
         status["groq"] = "error"
 
+    hydra_service = {"status": status.get("hydradb", "ok")}
+    if "hydradb_error" in status:
+        hydra_service["error"] = status["hydradb_error"]
+
     return {
-        "status": "ok" if all(v == "ok" for v in status.values()) else "degraded",
+        "status": "ok" if all(v == "ok" for k, v in status.items() if not k.endswith("_error")) else "degraded",
         "services": {
             "api": {"status": status.get("api", "ok")},
-            "hydradb": {"status": status.get("hydradb", "ok")},
+            "hydradb": hydra_service,
             "redis": {"status": status.get("redis", "ok")},
             "groq": {"status": status.get("groq", "ok")},
         },
