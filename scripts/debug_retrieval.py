@@ -14,6 +14,7 @@ from apps.api.pipeline.retrieval.traversal import traverse_for_question
 
 
 def main():
+    """Inspect and debug HydraDB nodes and traversal logic."""
     print("Debugging HydraDB retrieval...\n")
     print(f"URI: {settings.hydra_uri}")
     print(f"TOKEN: {settings.hydra_token}\n")

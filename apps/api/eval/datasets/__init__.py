@@ -1,11 +1,7 @@
-"""Dataset loaders for evaluation."""
+"""Dataset loaders for benchmark suites (LongMemEval, LongMemEval V2, BEAM)."""
 
+from .beam import BEAMDataset
 from .longmemeval import LongMemEvalDataset
 from .longmemeval_v2 import LongMemEvalV2Dataset
-from .beam import BEAMDataset
 
-__all__ = [
-    "LongMemEvalDataset",
-    "LongMemEvalV2Dataset",
-    "BEAMDataset",
-]
+__all__ = ["BEAMDataset", "LongMemEvalDataset", "LongMemEvalV2Dataset"]

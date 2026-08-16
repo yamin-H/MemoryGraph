@@ -14,11 +14,13 @@ class RateLimiterMiddleware:
     """
 
     def __init__(self, app):
+        """Initialize the rate limiting middleware with default request thresholds."""
         self.app = app
         self.rate_limit = 60  # requests per minute
         self.window_seconds = 60  # time window
 
     async def __call__(self, scope, receive, send):
+        """Evaluate client IP against sliding window rate limit in Redis."""
         # Only handle HTTP requests
         if scope["type"] != "http":
             await self.app(scope, receive, send)

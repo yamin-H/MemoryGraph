@@ -470,6 +470,7 @@ Available facts:
 
 Provide a concise answer based on these facts."""
 
+        tokens_used = 0
         try:
             response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
@@ -481,6 +482,8 @@ Provide a concise answer based on these facts."""
                 max_tokens=256,
             )
             answer_text = response.choices[0].message.content or "Unable to generate answer."
+            if hasattr(response, "usage") and response.usage:
+                tokens_used = response.usage.total_tokens or 0
         except Exception as e:
             answer_text = f"Error generating answer: {str(e)}"
 
@@ -499,7 +502,7 @@ Provide a concise answer based on these facts."""
         "reasoning": confidence["reasoning"],
         "query_time_ms": query_time_ms,
         "facts_examined": len(state.get("retrieved_facts", [])),
-        "groq_tokens_used": 0,  # Would need to track from API response
+        "groq_tokens_used": tokens_used if 'tokens_used' in locals() else 0,
     }
 
     print(f"       Answer: {answer_text[:50]}...")

@@ -18,6 +18,7 @@ class MemoryGraphSystem:
     """MemoryGraph system wrapper for benchmarking."""
 
     def __init__(self):
+        """Initialize the MemoryGraph benchmark evaluation wrapper."""
         self._initialized = False
 
     def add_sessions(self, sessions: list[dict[str, Any]]) -> None:

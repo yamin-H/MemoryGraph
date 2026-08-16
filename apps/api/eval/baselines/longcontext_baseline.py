@@ -11,6 +11,7 @@ class LongContextBaseline:
     """Long-context baseline using raw LLM context."""
 
     def __init__(self, groq_api_key: str | None = None, model: str = "llama-3.3-70b-versatile"):
+        """Initialize the long-context LLM baseline."""
         self.groq_api_key = groq_api_key or os.environ.get("GROQ_API_KEY")
         self.model = model
         self._groq_client = None

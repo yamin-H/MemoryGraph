@@ -16,6 +16,7 @@ node_modules/
 .next/
 
 # Data and cache
+data/
 scripts/data/
 hydradb-data/
 

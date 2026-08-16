@@ -24,9 +24,8 @@ from apps.api.db.hydra import HydraDB
 
 def get_hydra() -> HydraDB:
     """Create HydraDB instance from environment."""
-    uri = os.environ.get("HYDRADB_URI", "neo4j://127.0.0.1:7687")
-    token = os.environ.get("HYDRADB_TOKEN", "local-development-token-32-bytes")
-    return HydraDB(uri=uri, auth_token=token)
+    from apps.api.config import settings
+    return HydraDB(uri=settings.hydra_uri, auth_token=settings.hydra_token)
 
 
 def export_memory(output_file: str | None = None) -> dict:
@@ -184,6 +183,7 @@ def export_memory(output_file: str | None = None) -> dict:
 
 
 def main():
+    """CLI entrypoint to export MemoryGraph nodes and relationships to JSON."""
     import argparse
     parser = argparse.ArgumentParser(description="Export MemoryGraph from HydraDB")
     parser.add_argument("--output", "-o", help="Output file path")

@@ -25,46 +25,67 @@ def traverse_for_question(
     question_type = parsed_question.get("question_type", "current_fact")
     keywords = parsed_question.get("keywords", [])
 
-    if not entity_name:
-        return []
+    is_user_query = (
+        not entity_name
+        or entity_name.lower() in ("user", "me", "my", "i", "myself", "anonymous")
+    )
 
     facts = []
 
     with hydra._driver.session() as session:
-        # Fast path: Check summaries first for broad questions
-        if question_type == "multi_session_synthesis":
+        # If entity is specified and not a generic user pronoun, try entity-specific match first
+        if not is_user_query:
+            # Fast path: Check summaries first for broad questions
+            if question_type == "multi_session_synthesis":
+                result = session.run(
+                    "MATCH (sum:Summary)-[:SUMMARY_ANCHOR]->() "
+                    "WHERE sum.content CONTAINS $entity_name "
+                    "RETURN sum.content, sum.created_at",
+                    entity_name=entity_name,
+                )
+                summaries = list(result)
+
+            # Deep path: Traverse to Fact nodes for entity
             result = session.run(
-                "MATCH (sum:Summary)-[:SUMMARY_ANCHOR]->() "
-                "WHERE sum.content CONTAINS $entity_name "
-                "RETURN sum.content, sum.created_at",
+                "MATCH (f:Fact {is_current: true})-[:MENTIONS]->(e:Entity {name: $entity_name}) "
+                "OPTIONAL MATCH (f)-[:OCCURRED_IN]->(s:Session) "
+                "RETURN f.id, f.content, f.confidence, f.is_current, f.created_at, "
+                "       s.session_id, s.started_at",
                 entity_name=entity_name,
             )
-            summaries = list(result)
-            if summaries:
-                # Use summaries as hints, but still get facts
-                pass
 
-        # Deep path: Traverse to Fact nodes
-        # Get current facts for entity (is_current: true)
-        result = session.run(
-            "MATCH (f:Fact {is_current: true})-[:MENTIONS]->(e:Entity {name: $entity_name}) "
-            "OPTIONAL MATCH (f)-[:OCCURRED_IN]->(s:Session) "
-            "RETURN f.id, f.content, f.confidence, f.is_current, f.created_at, "
-            "       s.session_id, s.started_at",
-            entity_name=entity_name,
-        )
+            for record in result:
+                fact = {
+                    "fact_id": record["f.id"],
+                    "content": record["f.content"],
+                    "confidence": record["f.confidence"],
+                    "is_current": record["f.is_current"],
+                    "created_at": record["f.created_at"],
+                    "session_id": record["s.session_id"],
+                    "session_started_at": record["s.started_at"],
+                }
+                facts.append(fact)
 
-        for record in result:
-            fact = {
-                "fact_id": record["f.id"],
-                "content": record["f.content"],
-                "confidence": record["f.confidence"],
-                "is_current": record["f.is_current"],
-                "created_at": record["f.created_at"],
-                "session_id": record["s.session_id"],
-                "session_started_at": record["s.started_at"],
-            }
-            facts.append(fact)
+        # If 1st-person / User query OR no facts found for named entity, search all active facts
+        if not facts:
+            result = session.run(
+                "MATCH (f:Fact {is_current: true}) "
+                "OPTIONAL MATCH (f)-[:OCCURRED_IN]->(s:Session) "
+                "RETURN f.id, f.content, f.confidence, f.is_current, f.created_at, "
+                "       s.session_id, s.started_at LIMIT 100"
+            )
+
+            for record in result:
+                fact = {
+                    "fact_id": record["f.id"],
+                    "content": record["f.content"],
+                    "confidence": record["f.confidence"],
+                    "is_current": record["f.is_current"],
+                    "created_at": record["f.created_at"],
+                    "session_id": record["s.session_id"],
+                    "session_started_at": record["s.started_at"],
+                }
+                facts.append(fact)
 
         # For historical questions, also get superseded facts
         if question_type == "historical_fact":

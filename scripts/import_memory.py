@@ -29,10 +29,9 @@ def generate_int_id(unique_string: str) -> int:
 
 
 def get_hydra() -> HydraDB:
-    """Create HydraDB instance from environment."""
-    uri = os.environ.get("HYDRADB_URI", "neo4j://127.0.0.1:7687")
-    token = os.environ.get("HYDRADB_TOKEN", "local-development-token-32-bytes")
-    return HydraDB(uri=uri, auth_token=token)
+    """Create HydraDB instance from environment configuration."""
+    from apps.api.config import settings
+    return HydraDB(uri=settings.hydra_uri, auth_token=settings.hydra_token)
 
 
 def confirm_clear():
@@ -282,6 +281,7 @@ def import_memory(input_file: str | None = None, force: bool = False) -> dict:
 
 
 def main():
+    """CLI entrypoint to restore MemoryGraph nodes and relationships from JSON."""
     import argparse
     parser = argparse.ArgumentParser(description="Import MemoryGraph into HydraDB")
     parser.add_argument("--input", "-i", help="Input file path")
