@@ -13,23 +13,17 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "apps" / "api"))
 
-from apps.api.db.hydra import HydraDB
+from apps.api.db.hydra import HydraDB, build_bolt_auth
 
 
 @pytest.fixture(scope="session")
 def hydradb_client():
     """Provide a HydraDB client connected to localhost."""
-    # Check if HydraDB is available
-    import neo4j
     from neo4j import GraphDatabase
 
     uri = os.environ.get("HYDRADB_URI", "neo4j://127.0.0.1:7687")
-    token = os.environ.get("HYDRADB_TOKEN", "neo4j/password")
-    if "/" in token:
-        username, password = token.split("/", 1)
-        auth = neo4j.basic_auth(username, password)
-    else:
-        auth = neo4j.basic_auth("neo4j", token)
+    token = os.environ.get("HYDRADB_TOKEN", "local-development-token-32-bytes")
+    auth, _ = build_bolt_auth(token)
 
     driver = GraphDatabase.driver(uri, auth=auth)
     try:

@@ -2,7 +2,7 @@
 
 import { useMetrics, useAnimatedCounter } from '@/lib/hooks';
 import { SkeletonCard } from './Skeleton';
-import { Database, BookOpen, Users, Zap, MessageSquare, Flame } from 'lucide-react';
+import { Database, BookOpen, Users, Zap } from 'lucide-react';
 
 function StatCard({
   title,
@@ -23,38 +23,38 @@ function StatCard({
 
   const colors = {
     amber: {
-      iconBg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-      glow: 'group-hover:border-amber-500/30',
+      iconBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+      glow: 'hover:border-amber-500/40',
     },
     blue: {
-      iconBg: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      glow: 'group-hover:border-blue-500/30',
+      iconBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+      glow: 'hover:border-blue-500/40',
     },
     purple: {
-      iconBg: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-      glow: 'group-hover:border-purple-500/30',
+      iconBg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+      glow: 'hover:border-purple-500/40',
     },
     emerald: {
-      iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      glow: 'group-hover:border-emerald-500/30',
+      iconBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+      glow: 'hover:border-emerald-500/40',
     },
   }[colorScheme];
 
   return (
-    <div className={`glass-card p-5 group ${colors.glow} transition-all duration-300`}>
+    <div className={`glass-panel p-5 group ${colors.glow} transition-all duration-300 rounded-3xl border border-slate-200 dark:border-white/[0.08] shadow-md hover:-translate-y-1`}>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{title}</span>
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${colors.iconBg} transition-transform group-hover:scale-110`}>
-          <Icon size={17} />
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">{title}</span>
+        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${colors.iconBg} transition-transform group-hover:scale-110 shadow-sm`}>
+          <Icon size={18} />
         </div>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <p className="text-2xl sm:text-3xl font-extrabold text-slate-100 font-mono tracking-tight">
+        <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 font-mono tracking-tight">
           {animated.toLocaleString()}{suffix}
         </p>
       </div>
       {subtitle && (
-        <p className="text-[11px] text-slate-500 mt-1.5">{subtitle}</p>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 font-medium">{subtitle}</p>
       )}
     </div>
   );
@@ -87,7 +87,7 @@ export function MetricsDashboard() {
         value={metrics.sessions_ingested}
         icon={BookOpen}
         colorScheme="purple"
-        subtitle="Multi-turn conversation sessions"
+        subtitle="Multi-turn dialogue sessions"
       />
       <StatCard
         title="Entities Tracked"

@@ -256,74 +256,74 @@ export function BenchmarkTable() {
   return (
     <div className="space-y-6">
       {/* Top View Mode Switcher & Global Run Trigger */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-1.5 rounded-2xl glass-card border border-white/[0.08]">
-        <div className="flex gap-1 flex-wrap">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-2 rounded-2xl glass-panel shadow-md border border-slate-200 dark:border-white/[0.08]">
+        <div className="flex gap-1.5 flex-wrap">
           <button
             onClick={() => setViewMode('matrix')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
               viewMode === 'matrix'
                 ? 'bg-amber-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Trophy size={14} />
-            <span>Architecture Comparison Matrix</span>
+            <span>Architecture Matrix</span>
           </button>
           <button
             onClick={() => setViewMode('live_dataset')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
               viewMode === 'live_dataset'
                 ? 'bg-amber-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Database size={14} />
-            <span>Live LongMemEval Dataset Inspector</span>
+            <span>Dataset Inspector</span>
           </button>
         </div>
 
         <button
           onClick={handleRunBenchmark}
           disabled={running}
-          className="btn-primary text-xs w-full sm:w-auto px-4 py-2.5 flex items-center justify-center gap-2"
+          className="btn-primary text-xs w-full sm:w-auto px-5 py-2.5 flex items-center justify-center gap-2 shadow-md"
         >
           {running ? <Loader2 size={14} className="animate-spin text-slate-950" /> : <Play size={14} />}
-          <span>{running ? 'Running Benchmark Worker...' : 'Run Dataset Benchmark'}</span>
+          <span>{running ? 'Running Benchmark...' : 'Run Dataset Benchmark'}</span>
         </button>
       </div>
 
-      {/* LIVE BENCHMARK RUNNER CONSOLE (Appears dynamically when triggered) */}
+      {/* LIVE BENCHMARK RUNNER CONSOLE */}
       {activeJob && (
-        <div className="glass-card border border-amber-500/30 bg-gradient-to-br from-[#0f172a]/95 via-[#0d121c]/95 to-[#080b11]/95 p-5 space-y-4 shadow-2xl rounded-2xl animate-[fadeIn_0.3s_ease-out]">
+        <div className="glass-panel border border-amber-500/30 p-6 space-y-5 shadow-2xl rounded-3xl animate-fade-in">
           {/* Header row */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-200 dark:border-white/[0.08]">
             <div className="flex items-center gap-3">
               <div
-                className={`p-2.5 rounded-xl border ${
+                className={`p-2.5 rounded-2xl border ${
                   activeJob.status === 'running'
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse'
-                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-500 animate-pulse'
+                    : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-500'
                 }`}
               >
-                <Activity size={18} />
+                <Activity size={20} />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 font-heading">
                     Live Benchmark Execution Suite
                   </h3>
                   <span
-                    className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase ${
+                    className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full font-extrabold uppercase ${
                       activeJob.status === 'running'
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30'
+                        : 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30'
                     }`}
                   >
                     {activeJob.status}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
-                  Job ID: <span className="text-amber-400">{activeJob.job_id}</span> • LongMemEval Real Test Evaluation
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+                  Job ID: <span className="text-amber-600 dark:text-amber-400 font-bold">{activeJob.job_id}</span> • LongMemEval Real Test Suite
                 </p>
               </div>
             </div>
@@ -332,7 +332,7 @@ export function BenchmarkTable() {
               <button
                 onClick={handleRunBenchmark}
                 disabled={running}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/[0.08] flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
                 title="Rerun Benchmark"
               >
                 <RotateCcw size={12} className={running ? 'animate-spin' : ''} />
@@ -341,77 +341,77 @@ export function BenchmarkTable() {
 
               <button
                 onClick={() => setJobExpanded(!jobExpanded)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
                 title={jobExpanded ? 'Collapse' : 'Expand'}
               >
-                {jobExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                {jobExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </button>
             </div>
           </div>
 
           {jobExpanded && (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {/* Scorecard Metrics Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/[0.06] space-y-1">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-white/[0.06] space-y-1 shadow-sm">
                   <span className="text-[10px] uppercase font-bold text-slate-500 font-mono flex items-center gap-1">
-                    <Trophy size={11} className="text-amber-400" /> Evaluation Accuracy
+                    <Trophy size={11} className="text-amber-500" /> Evaluation Accuracy
                   </span>
-                  <p className="text-xl font-bold font-mono text-amber-300">
+                  <p className="text-2xl font-black font-mono text-amber-600 dark:text-amber-400">
                     {totalTests > 0 ? `${accuracyPct}%` : 'Evaluating...'}
                   </p>
-                  <span className="text-[10px] text-slate-400 font-mono block">
+                  <span className="text-[11px] text-slate-500 font-mono block font-semibold">
                     {correctTests}/{totalTests} matched
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/[0.06] space-y-1">
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-white/[0.06] space-y-1 shadow-sm">
                   <span className="text-[10px] uppercase font-bold text-slate-500 font-mono flex items-center gap-1">
-                    <Clock size={11} className="text-blue-400" /> Average Latency
+                    <Clock size={11} className="text-blue-500" /> Average Latency
                   </span>
-                  <p className="text-xl font-bold font-mono text-slate-200">
+                  <p className="text-2xl font-black font-mono text-slate-900 dark:text-slate-100">
                     {avgDuration} ms
                   </p>
-                  <span className="text-[10px] text-slate-400 font-mono block">
+                  <span className="text-[11px] text-slate-500 font-mono block">
                     Per question traversal
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/[0.06] space-y-1">
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-white/[0.06] space-y-1 shadow-sm">
                   <span className="text-[10px] uppercase font-bold text-slate-500 font-mono flex items-center gap-1">
-                    <Zap size={11} className="text-emerald-400" /> Total Duration
+                    <Zap size={11} className="text-emerald-500" /> Total Duration
                   </span>
-                  <p className="text-xl font-bold font-mono text-slate-200">
+                  <p className="text-2xl font-black font-mono text-slate-900 dark:text-slate-100">
                     {activeJob.total_duration_ms ? `${activeJob.total_duration_ms} ms` : 'In progress...'}
                   </p>
-                  <span className="text-[10px] text-slate-400 font-mono block">
+                  <span className="text-[11px] text-slate-500 font-mono block">
                     HydraDB Query Engine
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/[0.06] space-y-1">
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-white/[0.06] space-y-1 shadow-sm">
                   <span className="text-[10px] uppercase font-bold text-slate-500 font-mono flex items-center gap-1">
-                    <CheckCircle2 size={11} className="text-purple-400" /> Baseline Comparison
+                    <CheckCircle2 size={11} className="text-purple-500" /> Improvement
                   </span>
-                  <p className="text-xl font-bold font-mono text-emerald-400">
+                  <p className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
                     +19%
                   </p>
-                  <span className="text-[10px] text-slate-400 font-mono block">
+                  <span className="text-[11px] text-slate-500 font-mono block font-semibold">
                     vs. Traditional RAG
                   </span>
                 </div>
               </div>
 
               {/* Progress bar */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-[11px] font-mono text-slate-400">
-                  <span>Evaluation Progress ({totalTests}/5 evaluated)</span>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-mono text-slate-600 dark:text-slate-400 font-semibold">
+                  <span>Evaluation Progress ({totalTests}/5 questions)</span>
                   <span>{Math.min(100, Math.round((totalTests / 5) * 100))}%</span>
                 </div>
-                <div className="h-2 w-full bg-slate-800/80 rounded-full overflow-hidden border border-white/[0.06]">
+                <div className="h-2.5 w-full bg-slate-200 dark:bg-slate-800/80 rounded-full overflow-hidden border border-slate-200 dark:border-white/[0.06]">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      activeJob.status === 'completed' ? 'bg-emerald-400' : 'bg-amber-400'
+                      activeJob.status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500'
                     }`}
                     style={{ width: `${Math.max(10, Math.min(100, (totalTests / 5) * 100))}%` }}
                   />
@@ -419,61 +419,59 @@ export function BenchmarkTable() {
               </div>
 
               {/* Real-time streaming test list */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono block">
-                  EVALUATED SAMPLES STREAM
-                </span>
+              <div className="space-y-2.5">
+                <span className="section-label">EVALUATED SAMPLES STREAM</span>
 
                 {activeJob.tests && activeJob.tests.length > 0 ? (
-                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
                     {activeJob.tests.map((test, idx) => (
                       <div
                         key={idx}
-                        className="p-3.5 rounded-xl bg-slate-950/70 border border-white/[0.06] space-y-2 text-xs"
+                        className="p-4 rounded-2xl bg-white dark:bg-slate-950/70 border border-slate-200 dark:border-white/[0.06] space-y-2 text-xs shadow-sm"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-mono text-amber-400/90 font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                          <span className="text-[10px] font-mono text-amber-700 dark:text-amber-400 font-bold bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/20">
                             TEST #{idx + 1} • ID: {test.question_id}
                           </span>
                           <div className="flex items-center gap-3">
-                            <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
-                              <Clock size={11} /> {test.duration_ms} ms
+                            <span className="text-xs font-mono text-slate-500 flex items-center gap-1">
+                              <Clock size={12} /> {test.duration_ms} ms
                             </span>
                             {test.is_correct ? (
-                              <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold text-[11px] bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/25">
-                                <Check size={12} /> MATCH
+                              <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-bold text-xs bg-emerald-500/10 px-2.5 py-0.5 rounded-lg border border-emerald-500/25">
+                                <Check size={13} /> MATCH
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-rose-400 font-semibold text-[11px] bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/25">
-                                <X size={12} /> MISMATCH
+                              <span className="inline-flex items-center gap-1 text-rose-700 dark:text-rose-400 font-bold text-xs bg-rose-500/10 px-2.5 py-0.5 rounded-lg border border-rose-500/25">
+                                <X size={13} /> MISMATCH
                               </span>
                             )}
                           </div>
                         </div>
 
-                        <p className="text-slate-200 font-medium">{test.question}</p>
+                        <p className="text-slate-900 dark:text-slate-100 font-semibold">{test.question}</p>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono">
-                          <div className="p-2 rounded-lg bg-black/40 border border-white/5 space-y-0.5">
-                            <span className="text-[9px] uppercase text-emerald-400 block font-semibold">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-mono">
+                          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/5 space-y-1">
+                            <span className="text-[9px] uppercase text-emerald-600 dark:text-emerald-400 block font-bold">
                               Expected Ground Truth
                             </span>
-                            <span className="text-emerald-200/90">{test.ground_truth}</span>
+                            <span className="text-emerald-950 dark:text-emerald-200 font-semibold">{test.ground_truth}</span>
                           </div>
 
-                          <div className="p-2 rounded-lg bg-black/40 border border-white/5 space-y-0.5">
-                            <span className="text-[9px] uppercase text-amber-400 block font-semibold">
+                          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/5 space-y-1">
+                            <span className="text-[9px] uppercase text-amber-600 dark:text-amber-400 block font-bold">
                               MemoryGraph Predicted
                             </span>
-                            <span className="text-amber-200/90">{test.predicted || 'Abstained (No confident facts)'}</span>
+                            <span className="text-amber-950 dark:text-amber-200 font-semibold">{test.predicted || 'Abstained (No confident facts)'}</span>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="py-6 text-center text-slate-500 text-xs flex flex-col items-center gap-2">
-                    <Loader2 size={18} className="animate-spin text-amber-400" />
+                  <div className="py-8 text-center text-slate-500 text-xs flex flex-col items-center gap-2">
+                    <Loader2 size={20} className="animate-spin text-amber-500" />
                     <span>Dispatched background worker — evaluating questions on HydraDB...</span>
                   </div>
                 )}
@@ -485,17 +483,17 @@ export function BenchmarkTable() {
 
       {/* MATRIX VIEW */}
       {viewMode === 'matrix' ? (
-        <div className="space-y-6 animate-[fadeIn_0.25s_ease-out]">
+        <div className="space-y-6 animate-fade-in">
           {/* Benchmark Selector Pills */}
-          <div className="flex p-1 rounded-xl bg-slate-900 border border-white/[0.08] w-fit flex-wrap gap-1">
+          <div className="flex p-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.08] w-fit flex-wrap gap-1.5 shadow-sm">
             {Object.entries(fallbackDatasets).map(([key, dataset]) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === key
                     ? 'bg-amber-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 {dataset.name.split(' ')[0]}
@@ -504,66 +502,66 @@ export function BenchmarkTable() {
           </div>
 
           {/* Dataset Description Box */}
-          <div className="p-4 rounded-xl bg-slate-900/50 border border-white/[0.06] flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 flex-shrink-0">
-              <Trophy size={16} />
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/[0.06] flex items-center gap-3.5 shadow-sm">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex-shrink-0">
+              <Trophy size={18} />
             </div>
             <div>
-              <h4 className="text-xs font-bold text-slate-200">{currentDataset.name}</h4>
-              <p className="text-[11px] text-slate-400 mt-0.5">{currentDataset.description}</p>
+              <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-200 font-heading">{currentDataset.name}</h4>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 font-medium">{currentDataset.description}</p>
             </div>
           </div>
 
           {/* Table */}
-          <div className="glass-card overflow-hidden">
+          <div className="glass-panel overflow-hidden border border-slate-200 dark:border-white/[0.08] shadow-lg rounded-3xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="border-b border-white/[0.08] bg-white/[0.02]">
-                    <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <tr className="border-b border-slate-200 dark:border-white/[0.08] bg-slate-100/70 dark:bg-white/[0.02]">
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 font-mono">
                       Evaluation Category
                     </th>
-                    <th className="px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 font-mono">
                       Long-Context LLM
                     </th>
-                    <th className="px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 font-mono">
                       Vector RAG
                     </th>
-                    <th className="px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 font-mono">
                       mem0
                     </th>
-                    <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/5">
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 bg-amber-500/10 font-mono">
                       MemoryGraph (HydraDB)
                     </th>
-                    <th className="px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 font-mono">
                       Improvement
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.04]">
+                <tbody className="divide-y divide-slate-200 dark:divide-white/[0.04]">
                   {currentDataset.rows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-5 py-4 text-xs font-semibold text-slate-200">
+                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
+                      <td className="px-6 py-4 text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-200">
                         {row.type}
                       </td>
-                      <td className="px-4 py-4 text-xs font-mono text-slate-400">
+                      <td className="px-4 py-4 text-xs sm:text-sm font-mono text-slate-600 dark:text-slate-400 font-medium">
                         {row.longContext}%
                       </td>
-                      <td className="px-4 py-4 text-xs font-mono text-slate-400">
+                      <td className="px-4 py-4 text-xs sm:text-sm font-mono text-slate-600 dark:text-slate-400 font-medium">
                         {row.vector}%
                       </td>
-                      <td className="px-4 py-4 text-xs font-mono text-slate-300 font-medium">
+                      <td className="px-4 py-4 text-xs sm:text-sm font-mono text-slate-800 dark:text-slate-300 font-semibold">
                         {row.mem0}%
                       </td>
-                      <td className="px-5 py-4 text-xs font-mono font-bold text-amber-300 bg-amber-500/5">
+                      <td className="px-6 py-4 text-xs sm:text-sm font-mono font-extrabold text-amber-800 dark:text-amber-300 bg-amber-500/10">
                         <div className="flex items-center gap-2">
-                          <Sparkles size={12} className="text-amber-400" />
+                          <Sparkles size={14} className="text-amber-500" />
                           {row.memorygraph}%
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-xs font-mono font-semibold text-emerald-400">
-                        <span className="inline-flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                          <TrendingUp size={11} />
+                      <td className="px-4 py-4 text-xs sm:text-sm font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                        <span className="inline-flex items-center gap-1 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/25">
+                          <TrendingUp size={12} />
                           {row.gain}
                         </span>
                       </td>
@@ -575,7 +573,7 @@ export function BenchmarkTable() {
           </div>
 
           {/* Aggregates */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               { name: 'Long-Context', avg: Math.round(currentDataset.rows.reduce((a, r) => a + r.longContext, 0) / 4) },
               { name: 'Vector RAG', avg: Math.round(currentDataset.rows.reduce((a, r) => a + r.vector, 0) / 4) },
@@ -584,23 +582,23 @@ export function BenchmarkTable() {
             ].map((item, idx) => (
               <div
                 key={idx}
-                className={`glass-card p-4 space-y-2 ${
-                  item.isWinner ? 'border-amber-500/40 bg-amber-500/[0.04]' : ''
+                className={`glass-panel p-5 space-y-2.5 rounded-2xl shadow-md border ${
+                  item.isWinner ? 'border-amber-500/50 bg-amber-500/[0.06] ring-1 ring-amber-500/30' : 'border-slate-200 dark:border-white/[0.06]'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs font-semibold ${item.isWinner ? 'text-amber-400' : 'text-slate-400'}`}>
+                  <span className={`text-xs font-bold ${item.isWinner ? 'text-amber-700 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400'}`}>
                     {item.name}
                   </span>
-                  {item.isWinner && <CheckCircle2 size={14} className="text-amber-400" />}
+                  {item.isWinner && <CheckCircle2 size={16} className="text-amber-500" />}
                 </div>
-                <p className="text-2xl font-extrabold text-slate-100 font-mono">
+                <p className="text-3xl font-black text-slate-900 dark:text-slate-100 font-mono">
                   {item.avg}%
                 </p>
-                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-700 ${
-                      item.isWinner ? 'bg-amber-400' : 'bg-slate-600'
+                      item.isWinner ? 'bg-amber-500' : 'bg-slate-500'
                     }`}
                     style={{ width: `${item.avg}%` }}
                   />
@@ -611,27 +609,27 @@ export function BenchmarkTable() {
         </div>
       ) : (
         /* LIVE DATASET INSPECTOR VIEW */
-        <div className="space-y-6 animate-[fadeIn_0.25s_ease-out]">
+        <div className="space-y-6 animate-fade-in">
           {/* Dataset file info cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {availableDatasets.map((ds) => (
               <button
                 key={ds.id}
                 onClick={() => setSelectedDatasetId(ds.id)}
-                className={`p-4 rounded-xl text-left glass-card transition-all ${
+                className={`p-5 rounded-2xl text-left glass-panel transition-all cursor-pointer shadow-md ${
                   selectedDatasetId === ds.id
-                    ? 'border-amber-500/40 bg-amber-500/[0.05] ring-1 ring-amber-500/30'
-                    : 'hover:border-white/20'
+                    ? 'border-amber-500/50 bg-amber-500/[0.08] ring-1 ring-amber-500/30'
+                    : 'border-slate-200 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/20'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold text-slate-200">{ds.name}</span>
-                  <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-white/[0.06] text-amber-400">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 font-heading">{ds.name}</span>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-white/[0.06] text-amber-700 dark:text-amber-400">
                     {ds.size_mb} MB
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 leading-snug">{ds.file}</p>
-                <p className="text-[10px] text-slate-500 font-mono mt-2">
+                <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-snug">{ds.file}</p>
+                <p className="text-[11px] text-slate-500 font-mono mt-2 font-semibold">
                   {ds.total_examples} benchmark test cases
                 </p>
               </button>
@@ -641,22 +639,22 @@ export function BenchmarkTable() {
           {/* Interactive Split View */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left: Samples List */}
-            <div className="lg:col-span-6 glass-card p-4 space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">
+            <div className="lg:col-span-6 glass-panel p-5 space-y-4 rounded-3xl border border-slate-200 dark:border-white/[0.08] shadow-md">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/5">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 font-mono">
                   QUESTIONS IN {selectedDatasetId.toUpperCase()} ({samples.length})
                 </span>
                 <span className="text-[11px] text-slate-500">Click to inspect & evaluate</span>
               </div>
 
               {loadingSamples ? (
-                <div className="space-y-2 py-4">
+                <div className="space-y-2.5 py-4">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <SkeletonBlock key={i} className="h-14 w-full" />
+                    <SkeletonBlock key={i} className="h-16 w-full" />
                   ))}
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
                   {samples.map((s) => {
                     const isSelected = selectedSample?.question_id === s.question_id;
                     return (
@@ -666,21 +664,21 @@ export function BenchmarkTable() {
                           setSelectedSample(s);
                           setEvalResult(null);
                         }}
-                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
                           isSelected
-                            ? 'bg-amber-500/10 border-amber-500/40 text-slate-100 shadow-sm'
-                            : 'bg-slate-900/60 border-white/[0.06] hover:border-white/[0.15] text-slate-300'
+                            ? 'bg-amber-500/15 border-amber-500/50 text-slate-900 dark:text-slate-100 shadow-md ring-1 ring-amber-500/30'
+                            : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-white/[0.15] text-slate-700 dark:text-slate-300'
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-black/40 text-amber-400 font-semibold">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-black/40 text-amber-700 dark:text-amber-400 font-bold">
                             {s.question_type}
                           </span>
-                          <span className="text-[10px] font-mono text-slate-500">
+                          <span className="text-[10px] font-mono text-slate-500 font-semibold">
                             {s.sessions_count} sessions
                           </span>
                         </div>
-                        <p className="text-xs font-medium leading-snug line-clamp-2">
+                        <p className="text-xs font-semibold leading-snug line-clamp-2">
                           {s.question}
                         </p>
                       </div>
@@ -691,14 +689,14 @@ export function BenchmarkTable() {
             </div>
 
             {/* Right: Live Sample Evaluation Panel */}
-            <div className="lg:col-span-6 glass-card p-5 space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono flex items-center gap-2">
-                  <Terminal size={14} className="text-amber-400" />
+            <div className="lg:col-span-6 glass-panel p-6 space-y-4 rounded-3xl border border-slate-200 dark:border-white/[0.08] shadow-md">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/5">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 font-mono flex items-center gap-2">
+                  <Terminal size={15} className="text-amber-500" />
                   LIVE GRAPH EVALUATION
                 </span>
                 {selectedSample && (
-                  <span className="text-[10px] font-mono text-slate-400">
+                  <span className="text-xs font-mono text-slate-500 font-bold">
                     ID: {selectedSample.question_id}
                   </span>
                 )}
@@ -707,21 +705,21 @@ export function BenchmarkTable() {
               {selectedSample ? (
                 <div className="space-y-4 text-xs">
                   {/* Question Box */}
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <span className="text-[10px] uppercase font-bold text-slate-500 font-mono">
                       TEST QUESTION
                     </span>
-                    <p className="p-3 rounded-xl bg-slate-900/90 border border-white/[0.08] text-slate-200 text-xs font-semibold leading-relaxed">
+                    <p className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 text-xs font-bold leading-relaxed shadow-sm">
                       {selectedSample.question}
                     </p>
                   </div>
 
                   {/* Ground Truth Box */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-emerald-400 font-mono">
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                       GROUND TRUTH (DATASET ANSWER)
                     </span>
-                    <p className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/25 text-emerald-200 text-xs font-mono leading-relaxed">
+                    <p className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-950 dark:text-emerald-200 text-xs font-mono leading-relaxed font-semibold">
                       {selectedSample.answer}
                     </p>
                   </div>
@@ -730,48 +728,48 @@ export function BenchmarkTable() {
                   <button
                     onClick={() => handleRunLiveSampleEval(selectedSample)}
                     disabled={evaluating}
-                    className="btn-primary text-xs w-full py-2.5"
+                    className="btn-primary text-xs w-full py-3 shadow-md"
                   >
-                    {evaluating ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                    {evaluating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                     <span>{evaluating ? 'Retrieving from MemoryGraph...' : 'Evaluate Against MemoryGraph Pipeline'}</span>
                   </button>
 
                   {/* Live Eval Output */}
                   {evalResult && (
-                    <div className="p-4 rounded-xl bg-slate-950/80 border border-white/[0.08] space-y-3 animate-[fadeIn_0.2s_ease-out]">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <div className="p-5 rounded-2xl bg-white dark:bg-slate-950/90 border border-slate-200 dark:border-white/[0.08] space-y-3.5 shadow-md animate-fade-in">
+                      <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/5 pb-2">
                         <div className="flex items-center gap-1.5 font-bold">
                           {evalResult.is_correct ? (
-                            <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold text-xs">
+                            <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-bold text-xs bg-emerald-500/10 px-2.5 py-0.5 rounded-lg border border-emerald-500/25">
                               <Check size={14} /> Correct Match
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-amber-400 font-semibold text-xs">
+                            <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 font-bold text-xs bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/25">
                               <X size={14} /> Abstention / Non-exact Match
                             </span>
                           )}
                         </div>
 
-                        <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
-                          <Clock size={11} /> {evalResult.query_time_ms} ms
+                        <span className="text-xs font-mono text-slate-500 flex items-center gap-1 font-semibold">
+                          <Clock size={12} /> {evalResult.query_time_ms} ms
                         </span>
                       </div>
 
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 font-mono">
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-bold uppercase text-slate-500 font-mono">
                           PREDICTED PIPELINE ANSWER
                         </span>
-                        <p className="p-3 rounded-lg bg-black/50 border border-white/5 text-slate-200 font-mono text-[11px] leading-relaxed">
+                        <p className="p-3.5 rounded-xl bg-slate-50 dark:bg-black/50 border border-slate-200 dark:border-white/5 text-slate-900 dark:text-slate-100 font-mono text-xs leading-relaxed font-semibold">
                           {evalResult.predicted_answer || 'Abstained (No confident facts)'}
                         </p>
                       </div>
 
                       {evalResult.reasoning && (
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold uppercase text-slate-400 font-mono">
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-bold uppercase text-slate-500 font-mono">
                             GRAPH REASONING
                           </span>
-                          <p className="p-2.5 rounded-lg bg-black/30 border border-white/5 text-slate-400 text-[10px] font-mono leading-relaxed whitespace-pre-wrap">
+                          <p className="p-3 rounded-xl bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-400 text-[11px] font-mono leading-relaxed whitespace-pre-wrap">
                             {evalResult.reasoning}
                           </p>
                         </div>

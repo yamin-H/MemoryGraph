@@ -5,61 +5,60 @@ import { BarChart3, ShieldCheck, Zap, Layers } from 'lucide-react';
 
 export default function BenchmarkPage() {
   return (
-    <div className="max-w-7xl mx-auto p-6 sm:p-8 space-y-8 animate-[fadeIn_0.3s_ease-out]">
-      {/* Header Info */}
-      <div className="glass-card p-6 sm:p-8 border border-white/[0.08] bg-gradient-to-r from-purple-500/[0.08] via-slate-900/60 to-slate-900/80">
-        <div className="max-w-3xl space-y-2.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/25 text-purple-400 text-xs font-semibold">
-            <BarChart3 size={13} />
-            <span>Empirical Architecture Benchmark</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            MemoryGraph Accuracy & Abstention Evaluation
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            Comparing Graph-Native Memory on HydraDB against conventional vector RAG, Long-Context window prompting, and mem0 key-value memory across temporal fact updates, synthesis, and abstention scenarios.
-          </p>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
+      {/* Header */}
+      <div className="text-center space-y-3 max-w-2xl mx-auto pt-2">
+        <div className="animate-fade-in-up stagger-1 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-indigo-700 dark:text-indigo-400 text-xs font-bold font-mono shadow-sm">
+          <BarChart3 size={14} className="text-indigo-500" />
+          <span>Empirical Architecture Benchmark</span>
         </div>
+        <h1 className="animate-fade-in-up stagger-2 text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight font-heading">
+          Accuracy & Abstention Evaluation
+        </h1>
+        <p className="animate-fade-in-up stagger-3 text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg mx-auto font-medium">
+          Comparing Graph-Native Memory on HydraDB against vector RAG, long-context prompting, and mem0 key-value memory.
+        </p>
       </div>
 
-      {/* Feature Highlights Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="glass-card p-4 space-y-1.5 border border-emerald-500/20 bg-emerald-500/[0.02]">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
-            <Zap size={14} />
+      {/* Feature Highlight Cards */}
+      <div className="animate-fade-in-up stagger-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="feature-card space-y-2.5 !border-emerald-500/25 shadow-md">
+          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-xs sm:text-sm">
+            <Zap size={16} />
             <span>Temporal Fact Updates</span>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Up to +19% gain on superseded facts using explicit <code className="text-amber-300">SUPERSEDES</code> relationships in HydraDB.
+          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+            Up to +19% gain on superseded facts using recursive <code className="text-amber-700 dark:text-amber-300 font-mono font-bold bg-amber-500/10 px-1 rounded">SUPERSEDES</code> edges in HydraDB.
           </p>
         </div>
 
-        <div className="glass-card p-4 space-y-1.5 border border-blue-500/20 bg-blue-500/[0.02]">
-          <div className="flex items-center gap-2 text-blue-400 font-bold text-xs">
-            <Layers size={14} />
+        <div className="feature-card space-y-2.5 !border-blue-500/25 shadow-md">
+          <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-bold text-xs sm:text-sm">
+            <Layers size={16} />
             <span>Multi-Session Synthesis</span>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Consistently links entities and facts across non-contiguous dialogues spanning multiple days.
+          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+            Links entities and facts across non-contiguous dialogues spanning multiple days with zero context loss.
           </p>
         </div>
 
-        <div className="glass-card p-4 space-y-1.5 border border-amber-500/20 bg-amber-500/[0.02]">
-          <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
-            <ShieldCheck size={14} />
-            <span>Confidence-Aware Abstention</span>
+        <div className="feature-card space-y-2.5 !border-amber-500/25 shadow-md">
+          <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-xs sm:text-sm">
+            <ShieldCheck size={16} />
+            <span>Calibrated Abstention</span>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Abstains gracefully with zero hallucinations when requested information was never discussed.
+          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+            Abstains gracefully with zero hallucinations when information was never discussed.
           </p>
         </div>
       </div>
 
       {/* Evaluation Table */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 font-mono">
-          EVALUATION DATASETS & ACCURACY SCORES
-        </h2>
+      <section className="space-y-4 animate-fade-in-up stagger-5">
+        <div className="section-label">
+          <BarChart3 size={13} className="text-amber-500" />
+          <span>Evaluation Datasets & Accuracy Scores</span>
+        </div>
         <BenchmarkTable />
       </section>
     </div>

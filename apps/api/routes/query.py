@@ -40,6 +40,20 @@ async def query_memory(request: QueryRequest) -> dict[str, Any]:
     return service.query_memory(request.question, user_id=request.user_id)
 
 
+@router.post("/abstention-inspect")
+async def inspect_abstention_route(request: QueryRequest) -> dict[str, Any]:
+    """Inspect abstention and hallucination prevention reasoning trace.
+
+    Args:
+        request: Query request with question and user_id
+
+    Returns:
+        Step-by-step entity check, confidence breakdown, and honest abstention result
+    """
+    return service.inspect_abstention(request.question, user_id=request.user_id)
+
+
+
 @router.post("/stream")
 async def query_stream(request: QueryRequest) -> StreamingResponse:
     """Query the memory graph with streaming response.

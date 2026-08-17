@@ -1,28 +1,40 @@
 version: "3.9"
 
+# MemoryGraph stack — uses official HydraDB OSS (NOT Neo4j Community).
+# Docs: docs/HYDRADB_SETUP.md | Upstream: https://github.com/hydra-db/hydradb
+
 services:
   hydradb:
-    image: neo4j:5.24
+    image: ghcr.io/hydra-db/hydradb:latest
     container_name: memorygraph-hydradb
     restart: unless-stopped
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "7687:7687"   # Bolt (Neo4j-driver compatible)
+      - "8443:8443"   # HTTPS query API
+      - "9090:9090"   # Admin /readyz /metrics
     environment:
-      NEO4J_AUTH: "neo4j/password"
-      NEO4J_server_memory_pagecache_size: "512M"
-      NEO4J_server_memory_heap_initial__size: "512M"
-      NEO4J_server_memory_heap_max__size: "1G"
+      CLOUD_PROVIDER: local
+      LOCAL_PATH: /data/store
+      GRAPH_NAMESPACE: default
+      GRAPH_ID: default
+      GRAPH_CELL_ID: cell-0
+      GRAPH_CELLS: cell-0
+      GRAPH_NODE_ID: node-0
+      GRAPH_BOLT_NODE_ADDRESSES: node-0=0.0.0.0:7687
+      GRAPH_ADVERTISED_BOLT_ADDR: 0.0.0.0:7687
+      GRAPH_DATA_CACHE_DIR: /data/cache
+      GRAPH_AUTH_TOKEN_FILE: /data/auth-token
+      GRAPH_ALLOW_PLAINTEXT: "true"
+      RUST_MIN_STACK: "33554432"
     volumes:
-      - hydradb_data:/data
-      - hydradb_logs:/logs
-      - hydradb_import:/var/lib/neo4j/import
-      - hydradb_plugins:/plugins
+      # Bind mount so scripts/setup_hydradb.py can create store/, cache/, auth-token
+      - ./hydradb-data:/data
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p password 'RETURN 1' || exit 1"]
-      interval: 10s
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9090/readyz || exit 1"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 30
+      start_period: 45s
 
   redis:
     image: redis:7-alpine
@@ -37,7 +49,8 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
+      start_period: 5s
 
   postgres:
     image: postgres:16-alpine
@@ -52,10 +65,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d memorygraph_baseline"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 20
+      start_period: 20s
 
   api:
     build:
@@ -67,10 +81,17 @@ services:
       - "8000:8000"
     environment:
       HYDRADB_URI: neo4j://hydradb:7687
-      HYDRADB_TOKEN: neo4j/password
+      HYDRADB_TOKEN: local-development-token-32-bytes
+      HYDRADB_ADMIN_URL: http://hydradb:9090
       REDIS_URL: redis://redis:6379
       POSTGRES_URL: postgresql://postgres:password@postgres:5432/memorygraph_baseline
-      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY:-gsk_demo_mock_key}
+      GRAPH_NAMESPACE: default
+      GRAPH_CELL_ID: cell-0
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./data:/app/data
+      - ./scripts:/app/scripts
     depends_on:
       hydradb:
         condition: service_healthy
@@ -88,14 +109,10 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://api:8000
+      NEXT_PUBLIC_API_URL: http://localhost:8000
     depends_on:
       - api
 
 volumes:
-  hydradb_data:
-  hydradb_logs:
-  hydradb_import:
-  hydradb_plugins:
   redis_data:
   postgres_data:

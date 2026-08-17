@@ -148,3 +148,75 @@ export interface Toast {
   message?: string;
   duration?: number;
 }
+
+export interface RetrievedVectorChunk {
+  content: string;
+  similarity_score: number;
+  session_id: string;
+  is_outdated: boolean;
+  created_at?: string;
+  superseded_by?: string | null;
+}
+
+export interface VectorRagResult {
+  answer: string;
+  confidence: number;
+  abstained: boolean;
+  latency_ms: number;
+  retrieved_chunks: RetrievedVectorChunk[];
+  failure_mode: 'retrieved_conflicting_temporal_facts' | 'hallucinated_on_missing_context' | 'none';
+  retrieval_method: string;
+}
+
+export interface MemoryGraphResult {
+  answer: string;
+  confidence: number;
+  abstained: boolean;
+  latency_ms: number;
+  facts_examined: number;
+  source_sessions: string[];
+  active_facts: string[];
+  superseded_facts_filtered: Array<{ content: string; superseded_by?: string | null }>;
+  opencypher_query: string;
+}
+
+export interface CompareResponse {
+  question: string;
+  user_id: string;
+  winner: 'memorygraph' | 'tie' | 'vector_rag';
+  diff_explanation: string;
+  memorygraph: MemoryGraphResult;
+  vector_rag: VectorRagResult;
+}
+
+export interface ExtractedEntityCheck {
+  entity: string;
+  type: string;
+  in_graph: boolean;
+  status: string;
+}
+
+export interface ConfidenceBreakdown {
+  entity_coverage: number;
+  relation_density: number;
+  temporal_recency: number;
+  final_confidence: number;
+  threshold: number;
+}
+
+export interface AbstentionInspectionResponse {
+  question: string;
+  user_id: string;
+  latency_ms: number;
+  extracted_entities: ExtractedEntityCheck[];
+  subgraph_nodes_found: number;
+  confidence_breakdown: ConfidenceBreakdown;
+  abstention_triggered: boolean;
+  abstention_reason: string;
+  verified_answer: string;
+  hallucination_simulation: string;
+  related_facts_in_graph: string[];
+  opencypher_inspection: string;
+}
+
+

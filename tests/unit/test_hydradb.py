@@ -14,7 +14,7 @@ class TestHydraDB:
         db = HydraDB()
 
         assert db.uri == "neo4j://127.0.0.1:7687"
-        assert db.auth_token == "neo4j/password"
+        assert db.auth_token == "local-development-token-32-bytes"
         assert db._driver is None
 
     def test_init_with_custom_params(self):
@@ -26,8 +26,22 @@ class TestHydraDB:
         assert db.uri == "neo4j://custom:7687"
         assert db.auth_token == "custom-token"
 
-    def test_connect_creates_driver(self):
-        """Test connect creates Neo4j driver."""
+    def test_engine_info(self):
+        """Test engine metadata identifies HydraDB OSS."""
+        from apps.api.db.hydra import HydraDB
+
+        info = HydraDB.engine_info()
+        assert info["engine"] == "HydraDB OSS"
+        assert "hydra-db/hydradb" in info["image"]
+
+    def test_build_bolt_auth_token_form(self):
+        """Test token auth uses neo4j username with HydraDB token password."""
+        from apps.api.db.hydra import build_bolt_auth
+
+        auth, username = build_bolt_auth("local-development-token-32-bytes")
+        assert username == "neo4j"
+        assert auth is not None
+
         from apps.api.db.hydra import HydraDB
 
         with patch("apps.api.db.hydra.GraphDatabase.driver") as mock_driver:

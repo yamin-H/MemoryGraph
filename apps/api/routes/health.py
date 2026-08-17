@@ -12,24 +12,8 @@ from db.hydra import HydraDB
 router = APIRouter()
 
 
-def get_hydra():
-    """Get HydraDB client using Neo4j username/password auth."""
-    import neo4j
-    from neo4j import GraphDatabase
-    uri = os.environ.get("HYDRADB_URI", "neo4j://127.0.0.1:7687")
-    token = os.environ.get("HYDRADB_TOKEN", "neo4j/password")
-    if "/" in token:
-        username, password = token.split("/", 1)
-        auth = neo4j.basic_auth(username, password)
-    else:
-        auth = neo4j.basic_auth("neo4j", token)
-    driver = GraphDatabase.driver(uri, auth=auth)
-    return driver
-
-
 async def get_redis():
     """Get Redis client."""
-    import os
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
     return redis.from_url(redis_url)
 
@@ -52,6 +36,7 @@ async def health_check() -> dict[str, Any]:
     sessions_ingested = 0
     entities_tracked = 0
     avg_query_latency_ms = 0.0
+    hydradb_details: dict[str, Any] = HydraDB.engine_info()
 
     # Check HydraDB & Fetch graph counts with single session
     hydra_db = None
@@ -69,6 +54,8 @@ async def health_check() -> dict[str, Any]:
             hydra_db.connect()
             created_own = True
 
+        hydradb_details = hydra_db.health_details()
+
         with hydra_db._driver.session() as session:
             f_res = session.run("MATCH (f:Fact) RETURN count(f)")
             facts_stored = f_res.single()[0] or 0
@@ -82,6 +69,8 @@ async def health_check() -> dict[str, Any]:
         print(f"HydraDB health check error: {e}")
         status["hydradb"] = "error"
         status["hydradb_error"] = str(e)
+        hydradb_details["connected"] = False
+        hydradb_details["error"] = str(e)
     finally:
         if hydra_db and created_own:
             try:
@@ -121,7 +110,10 @@ async def health_check() -> dict[str, Any]:
     except Exception:
         status["groq"] = "error"
 
-    hydra_service = {"status": status.get("hydradb", "ok")}
+    hydra_service = {
+        "status": status.get("hydradb", "ok"),
+        **hydradb_details,
+    }
     if "hydradb_error" in status:
         hydra_service["error"] = status["hydradb_error"]
 

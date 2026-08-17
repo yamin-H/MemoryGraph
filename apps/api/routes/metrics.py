@@ -4,8 +4,6 @@ from typing import Any
 
 from fastapi import APIRouter
 import redis.asyncio as redis
-import neo4j
-from neo4j import GraphDatabase
 
 from db.hydra import HydraDB
 

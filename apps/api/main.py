@@ -1,9 +1,13 @@
-"""MemoryGraph API - Main FastAPI application."""
-
 import os
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Ensure apps/api directory is in sys.path
+api_dir = str(Path(__file__).resolve().parent)
+if api_dir not in sys.path:
+    sys.path.insert(0, api_dir)
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
@@ -15,7 +19,8 @@ from config import settings
 from db.hydra import HydraDB
 from middleware.rate_limiter import RateLimiterMiddleware
 from middleware.cost_tracker import CostTrackerMiddleware
-from routes import ingest, query, graph, health, metrics, benchmark
+from routes import ingest, query, graph, health, metrics, benchmark, compare
+
 
 # Load environment
 env_path = Path(__file__).parent.parent.parent.parent / ".env"
@@ -24,6 +29,33 @@ load_dotenv(env_path)
 # Global connections
 hydra_client: HydraDB | None = None
 redis_client: redis.Redis | None = None
+
+
+def bootstrap_schema(hydra: "HydraDB") -> None:
+    """Create HydraDB indexes for hot query paths.
+
+    Idempotent — uses CREATE INDEX IF NOT EXISTS so safe to run repeatedly.
+    """
+    indexes = [
+        ("idx_entity_name",   "Entity",  "name"),
+        ("idx_fact_current",  "Fact",    "is_current"),
+        ("idx_fact_created",  "Fact",    "created_at"),
+        ("idx_session_user",  "Session", "user_id"),
+        ("idx_session_id",    "Session", "session_id"),
+    ]
+    try:
+        with hydra._driver.session() as session:
+            for idx_name, label, prop in indexes:
+                try:
+                    session.run(
+                        f"CREATE INDEX {idx_name} IF NOT EXISTS FOR (n:{label}) ON (n.{prop})"
+                    )
+                except Exception:
+                    # Some HydraDB builds may not support IF NOT EXISTS — skip
+                    pass
+        print("[OK] HydraDB schema indexes bootstrapped")
+    except Exception as exc:
+        print(f"[INFO] Schema bootstrap skipped: {exc}")
 
 
 @asynccontextmanager
@@ -40,6 +72,10 @@ async def lifespan(app: FastAPI):
     try:
         hydra_client.connect()
         print(f"[OK] Connected to HydraDB at {hydra_uri}")
+        admin = hydra_client.health_details().get("admin", {})
+        if admin.get("ready"):
+            print(f"[OK] HydraDB OSS admin ready at {admin.get('admin_url')}/readyz")
+        bootstrap_schema(hydra_client)
     except Exception as exc:
         print(f"[WARNING] Could not immediately connect to HydraDB at {hydra_uri}: {exc}")
         print("FastAPI will start up and retry connection on request.")
@@ -97,6 +133,8 @@ app.add_middleware(CostTrackerMiddleware)
 # Include routers
 app.include_router(ingest.router, prefix="/ingest", tags=["Ingestion"])
 app.include_router(query.router, prefix="/query", tags=["Query"])
+app.include_router(compare.router, prefix="/compare", tags=["Compare"])
+app.include_router(compare.router, prefix="/query/compare", tags=["Compare"])
 app.include_router(graph.router, prefix="/graph", tags=["Graph"])
 app.include_router(health.router, tags=["Health"])
 app.include_router(metrics.router, tags=["Metrics"])

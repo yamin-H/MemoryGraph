@@ -1,1 +1,1 @@
-"""Database access and HydraDB / Neo4j driver wrappers."""
+"""Database access and HydraDB OSS Bolt driver wrappers."""

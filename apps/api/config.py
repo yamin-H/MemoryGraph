@@ -17,9 +17,11 @@ class Settings:
     def __init__(self) -> None:
         """Initialize settings from environment variables."""
         self.hydra_uri = os.environ.get("HYDRADB_URI", "neo4j://127.0.0.1:7687")
-        self.hydra_token = os.environ.get("HYDRADB_TOKEN", "neo4j/password")
+        self.hydra_token = os.environ.get("HYDRADB_TOKEN", "local-development-token-32-bytes")
+        self.hydra_admin_url = os.environ.get("HYDRADB_ADMIN_URL", "http://127.0.0.1:9090")
         self.redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
         self.groq_api_key = os.environ.get("GROQ_API_KEY")
+        self.groq_model = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
         self.graph_namespace = os.environ.get("GRAPH_NAMESPACE", "default")
         self.graph_cell_id = os.environ.get("GRAPH_CELL_ID", "cell-0")
 

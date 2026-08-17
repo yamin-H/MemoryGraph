@@ -3,6 +3,8 @@ import {
   HealthStatus,
   Metrics,
   QueryResponse,
+  CompareResponse,
+  AbstentionInspectionResponse,
   Entity,
   GraphData,
   DatasetInfo,
@@ -10,6 +12,7 @@ import {
   SampleEvaluationResult,
   SessionItem,
 } from './types';
+
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MAX_RETRIES = 2;
@@ -93,6 +96,22 @@ class MemoryGraphAPI {
     return response.data;
   }
 
+  async compareSystems(question: string, userId: string = 'user'): Promise<CompareResponse> {
+    const response = await this.withRetry(() =>
+      this.client.post('/query/compare', { question, user_id: userId })
+    );
+    return response.data;
+  }
+
+  async inspectAbstention(question: string, userId: string = 'user'): Promise<AbstentionInspectionResponse> {
+    const response = await this.withRetry(() =>
+      this.client.post('/query/abstention-inspect', { question, user_id: userId })
+    );
+    return response.data;
+  }
+
+
+
   async getSessionGraph(sessionId: string): Promise<GraphData> {
     try {
       const response = await this.withRetry(() =>
@@ -152,6 +171,13 @@ class MemoryGraphAPI {
   async ingestBatch(sessions: any[]): Promise<any> {
     const response = await this.withRetry(() =>
       this.client.post('/ingest/batch', sessions)
+    );
+    return response.data;
+  }
+
+  async seedDemoDataset(): Promise<{ status: string; message: string; total_sessions: number; successful_sessions: number }> {
+    const response = await this.withRetry(() =>
+      this.client.post('/ingest/seed-demo')
     );
     return response.data;
   }

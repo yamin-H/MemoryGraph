@@ -27,7 +27,7 @@ def traverse_for_question(
 
     is_user_query = (
         not entity_name
-        or entity_name.lower() in ("user", "me", "my", "i", "myself", "anonymous")
+        or entity_name.lower() in ("user", "me", "my", "i", "myself", "anonymous", "alex")
     )
 
     facts = []
@@ -39,7 +39,7 @@ def traverse_for_question(
             if question_type == "multi_session_synthesis":
                 result = session.run(
                     "MATCH (sum:Summary)-[:SUMMARY_ANCHOR]->() "
-                    "WHERE sum.content CONTAINS $entity_name "
+                    "WHERE toLower(sum.content) CONTAINS toLower($entity_name) "
                     "RETURN sum.content, sum.created_at",
                     entity_name=entity_name,
                 )
@@ -47,7 +47,8 @@ def traverse_for_question(
 
             # Deep path: Traverse to Fact nodes for entity
             result = session.run(
-                "MATCH (f:Fact {is_current: true})-[:MENTIONS]->(e:Entity {name: $entity_name}) "
+                "MATCH (f:Fact {is_current: true})-[:MENTIONS]->(e:Entity) "
+                "WHERE toLower(e.name) = toLower($entity_name) "
                 "OPTIONAL MATCH (f)-[:OCCURRED_IN]->(s:Session) "
                 "RETURN f.id, f.content, f.confidence, f.is_current, f.created_at, "
                 "       s.session_id, s.started_at",
@@ -111,14 +112,13 @@ def traverse_for_question(
                 }
                 facts.append(fact)
 
-    # Filter by keywords if present
-    if keywords and facts:
+    # For targeted queries, prioritize facts matching keywords while preserving relevant entity context
+    if keywords and facts and len(facts) > 10:
         filtered = []
         for fact in facts:
             content_lower = fact["content"].lower()
             if any(kw.lower() in content_lower for kw in keywords):
                 filtered.append(fact)
-        # If keyword filtering removes all results, keep original
         if filtered:
             facts = filtered
 

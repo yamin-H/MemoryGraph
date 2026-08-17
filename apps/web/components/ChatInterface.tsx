@@ -102,32 +102,34 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950/40">
+    <div className="flex flex-col h-full bg-slate-50/50 dark:bg-black/20">
       {/* Messages stream */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center min-h-[380px] text-center px-4 animate-[fadeIn_0.3s_ease-out]">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/5">
-              <Bot size={30} className="text-amber-400" />
+          <div className="flex flex-col items-center justify-center min-h-[380px] text-center px-4 animate-fade-in">
+            <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/10">
+              <Bot size={32} className="text-amber-600 dark:text-amber-400" />
             </div>
-            <h2 className="text-lg font-bold text-slate-100 mb-1">MemoryGraph Agent Chat</h2>
-            <p className="text-xs text-slate-400 max-w-md mb-8 leading-relaxed">
-              Temporal knowledge graph memory. Query across all sessions with automated confidence estimation and fact supersedence.
+            <h2 className="text-xl font-extrabold text-slate-900 dark:text-slate-100 mb-1 font-heading">
+              MemoryGraph Agent Chat
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-md mb-8 leading-relaxed font-medium">
+              Temporal knowledge graph memory. Query across multi-turn sessions with automated confidence estimation and fact supersedence.
             </p>
 
-            <div className="w-full max-w-lg space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Suggested queries</p>
+            <div className="w-full max-w-lg space-y-2.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2 font-mono">Suggested Queries</p>
               {suggestedQueries.map((q, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleSendMessage(q)}
-                  className="w-full text-left p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-white/[0.06] hover:border-amber-500/30 text-xs text-slate-300 hover:text-amber-300 transition-all flex items-center justify-between group"
+                  className="w-full text-left p-3.5 rounded-2xl glass-card hover:border-amber-500/40 text-xs text-slate-700 dark:text-slate-300 hover:text-amber-700 dark:hover:text-amber-300 transition-all flex items-center justify-between group cursor-pointer shadow-sm"
                 >
-                  <span className="flex items-center gap-2">
-                    <Sparkles size={13} className="text-amber-400/70 group-hover:text-amber-400" />
+                  <span className="flex items-center gap-2.5 font-medium">
+                    <Sparkles size={14} className="text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform" />
                     {q}
                   </span>
-                  <ChevronRight size={13} className="text-slate-600 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />
+                  <ChevronRight size={14} className="text-slate-400 dark:text-slate-600 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
                 </button>
               ))}
             </div>
@@ -139,19 +141,19 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
           return (
             <div
               key={idx}
-              className={`flex gap-3.5 ${isUser ? 'justify-end' : 'justify-start'} animate-[fadeInUp_0.25s_ease-out]`}
+              className={`flex gap-3.5 ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in-up`}
             >
               {!isUser && (
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0 text-amber-400 mt-1">
-                  <Bot size={16} />
+                <div className="w-9 h-9 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center flex-shrink-0 text-amber-600 dark:text-amber-400 mt-1 shadow-sm">
+                  <Bot size={18} />
                 </div>
               )}
 
               <div
-                className={`max-w-[85%] sm:max-w-xl rounded-2xl p-4 space-y-3 ${
+                className={`max-w-[85%] sm:max-w-xl rounded-3xl p-4 sm:p-5 space-y-3 ${
                   isUser
-                    ? 'bg-amber-500 text-slate-950 rounded-tr-sm font-medium shadow-md shadow-amber-500/10'
-                    : 'glass-card text-slate-100 rounded-tl-sm'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 rounded-tr-sm font-semibold shadow-md shadow-amber-500/15'
+                    : 'glass-card text-slate-900 dark:text-slate-100 rounded-tl-sm shadow-md'
                 }`}
               >
                 <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
@@ -159,15 +161,15 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
                 </div>
 
                 {!isUser && (
-                  <div className="pt-2 border-t border-white/5 space-y-2.5">
+                  <div className="pt-2.5 border-t border-slate-200 dark:border-white/5 space-y-2.5">
                     {/* Confidence & latency header */}
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       {message.confidence !== undefined && (
                         <ConfidenceScore score={message.confidence} />
                       )}
                       {message.queryTimeMs !== undefined && (
-                        <span className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
-                          <Clock size={11} />
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono flex items-center gap-1 font-semibold">
+                          <Clock size={12} />
                           {message.queryTimeMs}ms
                         </span>
                       )}
@@ -175,10 +177,10 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
 
                     {/* Abstention notice */}
                     {message.abstained && (
-                      <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-300">
-                        <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+                      <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-start gap-2 text-xs text-amber-900 dark:text-amber-200">
+                        <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
                         <div>
-                          <span className="font-semibold">Abstained:</span> {message.abstentionReason || 'Insufficient memory confidence'}
+                          <span className="font-bold">Honest Abstention:</span> {message.abstentionReason || 'Insufficient memory confidence'}
                         </div>
                       </div>
                     )}
@@ -186,11 +188,11 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
                     {/* Source sessions */}
                     {message.sourceSessions && message.sourceSessions.length > 0 && (
                       <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        <span className="text-[10px] uppercase font-semibold text-slate-500">Sources:</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 font-mono">Sources:</span>
                         {message.sourceSessions.map((sess, i) => (
                           <span
                             key={i}
-                            className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-slate-300"
+                            className="text-[10px] font-mono px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 font-semibold"
                           >
                             {sess}
                           </span>
@@ -203,13 +205,13 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
                       <div className="pt-1">
                         <button
                           onClick={() => setActiveReasoningIdx(activeReasoningIdx === idx ? null : idx)}
-                          className="text-[11px] text-amber-400/80 hover:text-amber-400 flex items-center gap-1 font-medium transition-colors"
+                          className="text-[11px] text-amber-700 dark:text-amber-400 hover:underline flex items-center gap-1 font-bold transition-colors cursor-pointer"
                         >
                           <Terminal size={12} />
                           {activeReasoningIdx === idx ? 'Hide Graph Reasoning' : 'View Graph Reasoning'}
                         </button>
                         {activeReasoningIdx === idx && (
-                          <div className="mt-2 p-3 rounded-lg bg-black/40 border border-white/[0.08] text-xs text-slate-300 font-mono leading-relaxed whitespace-pre-wrap animate-[fadeIn_0.2s_ease-out]">
+                          <div className="mt-2 p-3.5 rounded-2xl bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-300 font-mono leading-relaxed whitespace-pre-wrap animate-fade-in">
                             {message.reasoning}
                           </div>
                         )}
@@ -220,8 +222,8 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
               </div>
 
               {isUser && (
-                <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0 text-amber-400 mt-1">
-                  <User size={16} />
+                <div className="w-9 h-9 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0 text-amber-700 dark:text-amber-400 mt-1 shadow-sm font-bold">
+                  <User size={18} />
                 </div>
               )}
             </div>
@@ -230,13 +232,13 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
 
         {/* Loading state indicator */}
         {loading && (
-          <div className="flex gap-3.5 justify-start animate-[fadeIn_0.2s_ease-out]">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0 text-amber-400">
-              <Bot size={16} />
+          <div className="flex gap-3.5 justify-start animate-fade-in">
+            <div className="w-9 h-9 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center flex-shrink-0 text-amber-600 dark:text-amber-400">
+              <Bot size={18} />
             </div>
-            <div className="glass-card p-4 rounded-2xl rounded-tl-sm flex items-center gap-3">
-              <Loader2 size={16} className="text-amber-400 animate-spin" />
-              <span className="text-xs text-slate-400">Traversing HydraDB & computing temporal facts...</span>
+            <div className="glass-card p-4 rounded-3xl rounded-tl-sm flex items-center gap-3 shadow-md">
+              <Loader2 size={16} className="text-amber-500 animate-spin" />
+              <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Traversing HydraDB & computing temporal facts...</span>
             </div>
           </div>
         )}
@@ -245,8 +247,8 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
       </div>
 
       {/* Input container */}
-      <div className="p-4 border-t border-white/[0.08] bg-slate-900/60 backdrop-blur-xl">
-        <div className="max-w-4xl mx-auto flex gap-2.5 items-end">
+      <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-white/[0.08] bg-white/80 dark:bg-[#0c1220]/80 backdrop-blur-xl">
+        <div className="max-w-4xl mx-auto flex gap-3 items-end">
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
@@ -256,13 +258,13 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
               placeholder="Ask anything about long-term memories, facts, or entities... (Enter to send, Shift+Enter for newline)"
               rows={1}
               disabled={loading}
-              className="input-field min-h-[44px] max-h-[140px] resize-none py-2.5 pr-10 text-xs sm:text-sm"
+              className="input-field min-h-[46px] max-h-[140px] resize-none py-3 pr-10 text-xs sm:text-sm shadow-sm"
             />
           </div>
           <button
             onClick={() => handleSendMessage()}
             disabled={loading || !input.trim()}
-            className="btn-primary h-[44px] px-4 flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="btn-primary h-[46px] px-5 flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>

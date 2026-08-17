@@ -86,11 +86,11 @@ def check_abstention(
             "has_conflict": True,
         }
 
-    # Normal case: return relevant facts
+    # Normal case: return relevant facts (or all current facts for comprehensive multi-hop synthesis)
     return {
         "should_abstain": False,
         "abstention_reason": None,
-        "facts_to_use": relevant_facts if relevant_facts else current_facts,
+        "facts_to_use": current_facts if (not relevant_facts or len(current_facts) <= 8) else relevant_facts,
         "has_conflict": False,
     }
 

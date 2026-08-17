@@ -4,19 +4,18 @@ uvicorn[standard]>=0.30.0
 pydantic>=2.7.0
 python-dotenv>=1.0.0
 
-# Graph & Memory Pipeline
+# Graph & Memory Pipeline (HydraDB OSS via Bolt driver)
 neo4j>=5.24.0
 langgraph>=0.2.0
+langchain-core>=0.3.0
 groq>=0.11.0
 redis>=5.0.0
 
-# PostgreSQL / Vector Store
+# PostgreSQL / Baseline Storage
 psycopg[binary]>=3.2.0
 pgvector>=0.3.0
 
-# Baseline Evaluation & Benchmarking (Optional)
-sentence-transformers>=3.0.0
-mem0ai>=0.1.0
+# Utilities & Async HTTP
 httpx>=0.27.0
 pytest>=8.0.0
 pytest-asyncio>=0.24.0

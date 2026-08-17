@@ -1,33 +1,92 @@
-"""HydraDB connection module using Neo4j driver."""
+"""HydraDB OSS connection module using the official Bolt driver.
+
+HydraDB (https://github.com/hydra-db/hydradb) exposes a Neo4j-compatible Bolt
+protocol with OpenCypher. MemoryGraph connects to graph-node over Bolt — not
+Neo4j Community Edition.
+"""
 
 from __future__ import annotations
 
-from neo4j import GraphDatabase
+import os
+from typing import Any
+from urllib.parse import urlparse
+
+import httpx
 import neo4j
+from neo4j import GraphDatabase
+
+DEFAULT_URI = "neo4j://127.0.0.1:7687"
+DEFAULT_TOKEN = "local-development-token-32-bytes"
+DEFAULT_ADMIN_URL = "http://127.0.0.1:9090"
+HYDRADB_IMAGE = "ghcr.io/hydra-db/hydradb"
+HYDRADB_REPO = "https://github.com/hydra-db/hydradb"
+
+
+def build_bolt_auth(token: str) -> tuple[Any, str]:
+    """Build Bolt auth for HydraDB (token or username/password forms)."""
+    token = token or DEFAULT_TOKEN
+    if "/" in token:
+        username, password = token.split("/", 1)
+        return neo4j.basic_auth(username, password), username
+    if ":" in token and not token.startswith("http"):
+        username, password = token.split(":", 1)
+        return neo4j.basic_auth(username, password), username
+    return neo4j.basic_auth("neo4j", token), "neo4j"
+
+
+def probe_hydradb_admin(admin_url: str | None = None, timeout: float = 2.0) -> dict[str, Any]:
+    """Check HydraDB admin /readyz — proves graph-node is HydraDB OSS, not Neo4j."""
+    admin_url = (admin_url or os.environ.get("HYDRADB_ADMIN_URL", DEFAULT_ADMIN_URL)).rstrip("/")
+    try:
+        response = httpx.get(f"{admin_url}/readyz", timeout=timeout)
+        return {
+            "ready": response.status_code == 200,
+            "admin_url": admin_url,
+            "status_code": response.status_code,
+        }
+    except Exception as exc:
+        return {
+            "ready": False,
+            "admin_url": admin_url,
+            "error": str(exc),
+        }
 
 
 class HydraDB:
-    """Connection to HydraDB via Neo4j Bolt protocol."""
+    """Connection to HydraDB OSS via Bolt protocol."""
 
     def __init__(
         self,
         uri: str | None = None,
         auth_token: str | None = None,
+        admin_url: str | None = None,
     ):
         """Initialize the HydraDB connection client."""
-        import os
         from config import settings
-        self.uri = uri or settings.hydra_uri or os.environ.get("HYDRADB_URI", "neo4j://127.0.0.1:7687")
-        self.auth_token = auth_token or settings.hydra_token or os.environ.get("HYDRADB_TOKEN", "neo4j/password")
+
+        self.uri = uri or settings.hydra_uri or os.environ.get("HYDRADB_URI", DEFAULT_URI)
+        self.auth_token = (
+            auth_token
+            or settings.hydra_token
+            or os.environ.get("HYDRADB_TOKEN", DEFAULT_TOKEN)
+        )
+        self.admin_url = admin_url or os.environ.get("HYDRADB_ADMIN_URL", DEFAULT_ADMIN_URL)
         self._driver = None
 
+    @staticmethod
+    def engine_info() -> dict[str, str]:
+        """Metadata for health checks and hackathon demos."""
+        return {
+            "engine": "HydraDB OSS",
+            "image": HYDRADB_IMAGE,
+            "repository": HYDRADB_REPO,
+            "protocol": "Bolt + OpenCypher",
+        }
+
     def _build_auth(self):
-        """Build a Neo4j auth object that works for local HydraDB and managed services."""
-        token = self.auth_token or "neo4j/password"
-        if "/" in token:
-            username, password = token.split("/", 1)
-            return neo4j.basic_auth(username, password)
-        return neo4j.basic_auth("neo4j", token)
+        """Build a Bolt auth object for HydraDB."""
+        auth, _ = build_bolt_auth(self.auth_token)
+        return auth
 
     @property
     def is_connected(self) -> bool:
@@ -56,12 +115,10 @@ class HydraDB:
             candidate_uris.append(self.uri.replace("bolt://", "neo4j://", 1))
 
         last_exc = None
+        driver = None
         for uri in candidate_uris:
             try:
-                driver = GraphDatabase.driver(
-                    uri,
-                    auth=auth,
-                )
+                driver = GraphDatabase.driver(uri, auth=auth)
                 driver.verify_connectivity()
                 self._driver = driver
                 self.uri = uri
@@ -73,6 +130,7 @@ class HydraDB:
                         driver.close()
                     except Exception:
                         pass
+                driver = None
 
         self._driver = None
         raise RuntimeError(f"Unable to connect to HydraDB at {self.uri}: {last_exc}") from last_exc
@@ -92,6 +150,22 @@ class HydraDB:
         """Context manager exit, closing open connection."""
         self.close()
 
+    def health_details(self) -> dict[str, Any]:
+        """Return connection and admin readiness for observability."""
+        details = {
+            **self.engine_info(),
+            "bolt_uri": self.uri,
+            "connected": self.is_connected,
+        }
+        parsed = urlparse(self.uri)
+        host = parsed.hostname or "127.0.0.1"
+        if host in {"hydradb", "localhost"}:
+            admin_url = self.admin_url
+        else:
+            admin_url = f"http://{host}:9090"
+        details["admin"] = probe_hydradb_admin(admin_url)
+        return details
+
     def write_fact(self, fact_id: int, content: str) -> None:
         """Write a Fact node to the graph.
 
@@ -102,8 +176,6 @@ class HydraDB:
         """
         self.ensure_connected()
         with self._driver.session() as session:
-            # Create two nodes with a relationship between them
-            # Using fact_id for the primary node, and fact_id + 1000000 for the anchor
             session.run(
                 "MERGE (f:Fact {id: $id, content: $content})-[:HAS_FACT]->(a:Anchor {id: $anchor_id})",
                 id=fact_id,
@@ -136,17 +208,21 @@ def main():
     db = HydraDB()
     db.connect()
     print(f"Connected to HydraDB at {db.uri}")
+    print(f"Engine: {db.engine_info()}")
+
+    admin = probe_hydradb_admin()
+    if admin.get("ready"):
+        print(f"HydraDB admin ready at {admin['admin_url']}/readyz")
+    else:
+        print(f"HydraDB admin not ready: {admin}")
 
     try:
-        # Write test fact
         db.write_fact(1, "MemoryGraph is a graph-native agent memory layer")
         print("Wrote test Fact node: id=1")
 
-        # Read it back
         fact = db.read_fact(1)
         print(f"Read back: {fact}")
 
-        # Cleanup
         db.clear_all()
         print("Cleaned up test data")
 
