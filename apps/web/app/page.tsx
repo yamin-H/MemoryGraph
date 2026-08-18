@@ -24,17 +24,12 @@ import {
   CheckCircle2,
   HardDrive,
   RefreshCw,
+  User,
+  Search,
 } from 'lucide-react';
 import { CodeViewer } from '@/components/CodeViewer';
 import { api } from '@/lib/api';
 import { GraphData } from '@/lib/types';
-
-const AVAILABLE_CELL_USERS = [
-  { id: 'alex', name: 'Alex', role: 'Software Architect', cell: 'cell-3', location: 'Dhaka' },
-  { id: 'jordan', name: 'Jordan', role: 'DevOps Lead', cell: 'cell-6', location: 'Singapore' },
-  { id: 'taylor', name: 'Taylor', role: 'ML Researcher', cell: 'cell-1', location: 'Boston' },
-  { id: 'sarah', name: 'Sarah', role: 'Product Manager', cell: 'cell-4', location: 'London' },
-];
 
 /* ── Feature Cards Data ── */
 const featureActions = [
@@ -200,6 +195,15 @@ function useCounter(target: number, duration = 1200) {
   return count;
 }
 
+function getCellIdFromUserId(userId: string): string {
+  // SlateDB cell assignment: MD5 hash modulo 8
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = ((hash << 5) - hash + userId.charCodeAt(i)) | 0;
+  }
+  return `cell-${(Math.abs(hash) % 8) + 1}`;
+}
+
 export default function HomePage() {
   const [activeCodeTab, setActiveCodeTab] = useState<'python' | 'agent' | 'curl' | 'opencypher'>('python');
   const [copied, setCopied] = useState(false);
@@ -214,11 +218,13 @@ export default function HomePage() {
   const hallucinationRate = useCounter(0);
 
   // Cell-Level Storage Isolation Demo State
-  const [userA, setUserA] = useState('alex');
-  const [userB, setUserB] = useState('jordan');
+  const [userA, setUserA] = useState('');
+  const [userB, setUserB] = useState('');
   const [graphA, setGraphA] = useState<GraphData | null>(null);
   const [graphB, setGraphB] = useState<GraphData | null>(null);
   const [loadingCells, setLoadingCells] = useState(false);
+  const [lastFetchedA, setLastFetchedA] = useState<string | null>(null);
+  const [lastFetchedB, setLastFetchedB] = useState<string | null>(null);
 
   const fetchCellData = async (uA: string, uB: string) => {
     setLoadingCells(true);
@@ -229,16 +235,16 @@ export default function HomePage() {
       ]);
       setGraphA(dataA);
       setGraphB(dataB);
+      setLastFetchedA(uA);
+      setLastFetchedB(uB);
     } catch (e) {
       console.error('Failed to load cell graphs', e);
+      setGraphA(null);
+      setGraphB(null);
     } finally {
       setLoadingCells(false);
     }
   };
-
-  useEffect(() => {
-    fetchCellData(userA, userB);
-  }, [userA, userB]);
 
   useEffect(() => {
     let timer: any;
@@ -736,20 +742,19 @@ export default function HomePage() {
                     Primary Agent (User A):
                   </label>
                   <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500/15 text-blue-300 border border-blue-500/30">
-                    HydraDB {AVAILABLE_CELL_USERS.find((u) => u.id === userA)?.cell || 'cell-0'}
+                    HydraDB {userA ? getCellIdFromUserId(userA) : 'cell-0'}
                   </span>
                 </div>
-                <select
-                  value={userA}
-                  onChange={(e) => setUserA(e.target.value)}
-                  className="w-full input-field py-2 px-3 text-xs bg-[#0b101d] text-white border-white/[0.08] font-medium"
-                >
-                  {AVAILABLE_CELL_USERS.map((u) => (
-                    <option key={u.id} value={u.id} className="bg-[#0b101d] text-white">
-                      {u.name} — {u.role} ({u.cell})
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                  <input
+                    type="text"
+                    value={userA}
+                    onChange={(e) => setUserA(e.target.value)}
+                    placeholder="Enter user ID (e.g., alex_123)"
+                    className="w-full input-field py-2 px-3 pl-10 text-xs bg-[#0b101d] text-white border-white/[0.08] font-medium"
+                  />
+                </div>
               </div>
 
               {/* User B Selector */}
@@ -759,20 +764,19 @@ export default function HomePage() {
                     Isolated Contrast (User B):
                   </label>
                   <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                    HydraDB {AVAILABLE_CELL_USERS.find((u) => u.id === userB)?.cell || 'cell-0'}
+                    HydraDB {userB ? getCellIdFromUserId(userB) : 'cell-0'}
                   </span>
                 </div>
-                <select
-                  value={userB}
-                  onChange={(e) => setUserB(e.target.value)}
-                  className="w-full input-field py-2 px-3 text-xs bg-[#0b101d] text-white border-white/[0.08] font-medium"
-                >
-                  {AVAILABLE_CELL_USERS.map((u) => (
-                    <option key={u.id} value={u.id} className="bg-[#0b101d] text-white">
-                      {u.name} — {u.role} ({u.cell})
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                  <input
+                    type="text"
+                    value={userB}
+                    onChange={(e) => setUserB(e.target.value)}
+                    placeholder="Enter user ID (e.g., jordan_456)"
+                    className="w-full input-field py-2 px-3 pl-10 text-xs bg-[#0b101d] text-white border-white/[0.08] font-medium"
+                  />
+                </div>
               </div>
             </div>
 
@@ -784,17 +788,17 @@ export default function HomePage() {
                   <div className="flex items-center gap-2">
                     <HardDrive size={15} className="text-blue-400" />
                     <span className="text-xs font-bold text-white font-heading">
-                      {AVAILABLE_CELL_USERS.find((u) => u.id === userA)?.name}&apos;s Knowledge Graph
+                      {userA || 'User A'}&apos;s Knowledge Graph
                     </span>
                   </div>
                   <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                    {AVAILABLE_CELL_USERS.find((u) => u.id === userA)?.cell}
+                    {userA ? getCellIdFromUserId(userA) : 'cell-0'}
                   </span>
                 </div>
 
                 <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono">
-                  <span>Location: {AVAILABLE_CELL_USERS.find((u) => u.id === userA)?.location}</span>
-                  <span>{graphA?.nodes.length || 3} Nodes · {graphA?.edges.length || 2} Edges</span>
+                  <span>Cell ID: {userA ? getCellIdFromUserId(userA) : '—'}</span>
+                  <span>{graphA?.nodes.length || 0} Nodes · {graphA?.edges.length || 0} Edges</span>
                 </div>
 
                 {/* Subgraph Nodes */}
@@ -802,18 +806,22 @@ export default function HomePage() {
                   <span className="text-[10px] font-mono uppercase text-slate-500 font-bold block">
                     SlateDB Partition Entities & Facts:
                   </span>
-                  {(graphA?.nodes || [
-                    { id: '1', label: `${AVAILABLE_CELL_USERS.find((u) => u.id === userA)?.name} (Entity)`, type: 'Entity' },
-                    { id: '2', label: `Lives in ${AVAILABLE_CELL_USERS.find((u) => u.id === userA)?.location} (Current Fact)`, type: 'Fact' },
-                    { id: '3', label: `Role: ${AVAILABLE_CELL_USERS.find((u) => u.id === userA)?.role}`, type: 'Fact' },
-                  ]).map((n: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-white/[0.03] border border-white/[0.04]">
-                      <span className="text-slate-300 font-medium truncate pr-2">{n.label || n.data?.content || `Node #${n.id}`}</span>
-                      <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 shrink-0">
-                        {n.type || 'Fact'}
-                      </span>
+                  {graphA?.nodes && graphA.nodes.length > 0 ? (
+                    graphA.nodes.map((n: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-white/[0.03] border border-white/[0.04]">
+                        <span className="text-slate-300 font-medium truncate pr-2">{n.label || n.data?.content || `Node #${n.id}`}</span>
+                        <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 shrink-0">
+                          {n.type || 'Fact'}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-slate-500 text-xs">
+                      <Search className="mx-auto mb-2 text-slate-600" size={24} />
+                      <p>No data found for this user.</p>
+                      <p className="mt-1">Enter a user ID above and click "Re-verify Cells" to load real data from HydraDB.</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -823,17 +831,17 @@ export default function HomePage() {
                   <div className="flex items-center gap-2">
                     <HardDrive size={15} className="text-amber-400" />
                     <span className="text-xs font-bold text-white font-heading">
-                      {AVAILABLE_CELL_USERS.find((u) => u.id === userB)?.name}&apos;s Knowledge Graph
+                      {userB || 'User B'}&apos;s Knowledge Graph
                     </span>
                   </div>
                   <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    {AVAILABLE_CELL_USERS.find((u) => u.id === userB)?.cell}
+                    {userB ? getCellIdFromUserId(userB) : 'cell-0'}
                   </span>
                 </div>
 
                 <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono">
-                  <span>Location: {AVAILABLE_CELL_USERS.find((u) => u.id === userB)?.location}</span>
-                  <span>{graphB?.nodes.length || 3} Nodes · {graphB?.edges.length || 2} Edges</span>
+                  <span>Cell ID: {userB ? getCellIdFromUserId(userB) : '—'}</span>
+                  <span>{graphB?.nodes.length || 0} Nodes · {graphB?.edges.length || 0} Edges</span>
                 </div>
 
                 {/* Subgraph Nodes */}
@@ -841,18 +849,22 @@ export default function HomePage() {
                   <span className="text-[10px] font-mono uppercase text-slate-500 font-bold block">
                     SlateDB Partition Entities & Facts:
                   </span>
-                  {(graphB?.nodes || [
-                    { id: '4', label: `${AVAILABLE_CELL_USERS.find((u) => u.id === userB)?.name} (Entity)`, type: 'Entity' },
-                    { id: '5', label: `Lives in ${AVAILABLE_CELL_USERS.find((u) => u.id === userB)?.location} (Current Fact)`, type: 'Fact' },
-                    { id: '6', label: `Role: ${AVAILABLE_CELL_USERS.find((u) => u.id === userB)?.role}`, type: 'Fact' },
-                  ]).map((n: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-white/[0.03] border border-white/[0.04]">
-                      <span className="text-slate-300 font-medium truncate pr-2">{n.label || n.data?.content || `Node #${n.id}`}</span>
-                      <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 shrink-0">
-                        {n.type || 'Fact'}
-                      </span>
+                  {graphB?.nodes && graphB.nodes.length > 0 ? (
+                    graphB.nodes.map((n: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-white/[0.03] border border-white/[0.04]">
+                        <span className="text-slate-300 font-medium truncate pr-2">{n.label || n.data?.content || `Node #${n.id}`}</span>
+                        <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 shrink-0">
+                          {n.type || 'Fact'}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-slate-500 text-xs">
+                      <Search className="mx-auto mb-2 text-slate-600" size={24} />
+                      <p>No data found for this user.</p>
+                      <p className="mt-1">Enter a user ID above and click "Re-verify Cells" to load real data from HydraDB.</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -866,7 +878,7 @@ export default function HomePage() {
                     Physical SlateDB Overlap: 0.0% · Zero Cross-Cell Contamination Verified
                   </span>
                   <p className="text-[11px] text-emerald-400/80 font-mono mt-0.5">
-                    HTTP query routing matches target cell_id directly into /data/store/{AVAILABLE_CELL_USERS.find((u) => u.id === userA)?.cell} vs /data/store/{AVAILABLE_CELL_USERS.find((u) => u.id === userB)?.cell}
+                    HTTP query routing matches target cell_id directly into /data/store/{userA ? getCellIdFromUserId(userA) : 'cell-0'} vs /data/store/{userB ? getCellIdFromUserId(userB) : 'cell-0'}
                   </p>
                 </div>
               </div>

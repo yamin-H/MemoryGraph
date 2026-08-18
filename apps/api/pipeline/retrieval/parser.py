@@ -95,7 +95,7 @@ Return a JSON object with entity_name, question_type, and keywords."""
 def parse_question(
     client: Groq,
     question: str,
-    model: str = "llama-3.1-8b-instant",
+    model: str = "qwen/qwen3.6-27b",
 ) -> dict[str, Any]:
     """Parse a natural language question into structured form.
 

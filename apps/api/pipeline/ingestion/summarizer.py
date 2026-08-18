@@ -50,14 +50,14 @@ def format_messages(messages: list[dict[str, str]]) -> str:
 def summarize_session(
     client: Groq,
     session: dict[str, Any],
-    model: str = "llama-3.1-8b-instant",
+    model: str = "openai/gpt-oss-120b",
 ) -> dict[str, str] | None:
     """Generate a summary of a chat session.
 
     Args:
         client: Groq client instance
         session: Session dict with session_id, user_id, started_at, and messages
-        model: Groq model to use (default: llama-3.1-8b-instant)
+        model: Groq model to use (default: openai/gpt-oss-120b)
 
     Returns:
         Summary dict with summary_id, session_id, content, and generated_at

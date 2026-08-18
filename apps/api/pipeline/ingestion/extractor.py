@@ -176,7 +176,7 @@ def _rule_based_fallback_facts(session: dict[str, Any]) -> list[dict[str, Any]]:
 def extract_facts(
     client: Any,
     session: dict[str, Any],
-    model: str = "llama-3.1-8b-instant",
+    model: str = "openai/gpt-oss-120b",
 ) -> list[dict[str, Any]]:
     """Extract structured facts from a session payload.
 
@@ -260,7 +260,7 @@ def extract_facts_from_session(
     session_turns: list[dict[str, Any]],
     session_index: int,
     session_date: str = "",
-    model: str = "llama-3.1-8b-instant",
+    model: str = "openai/gpt-oss-120b",
 ) -> list[dict[str, Any]]:
     """Extract structured facts from a LongMemEval session."""
     session = {
@@ -274,7 +274,7 @@ def extract_facts_from_session(
 def extract_facts_from_example(
     client: Groq,
     example: dict[str, Any],
-    model: str = "llama-3.1-8b-instant",
+    model: str = "openai/gpt-oss-120b",
 ) -> list[dict[str, Any]]:
     """Extract facts from a full LongMemEval example across all sessions."""
     sessions = example.get("sessions", [])

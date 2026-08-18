@@ -5,9 +5,7 @@ import time
 import uuid
 from typing import Any
 
-import psycopg
 from groq import Groq
-from sentence_transformers import SentenceTransformer
 
 
 class VectorBaseline:
@@ -24,6 +22,7 @@ class VectorBaseline:
     def _get_connection(self):
         """Get or create PostgreSQL connection."""
         if self._conn is None or self._conn.closed:
+            import psycopg
             self._conn = psycopg.connect(self.postgres_url)
             self._conn.autocommit = True
             self._init_db()
@@ -50,6 +49,7 @@ class VectorBaseline:
     def _get_encoder(self):
         """Get or create sentence transformer encoder."""
         if self._encoder is None:
+            from sentence_transformers import SentenceTransformer
             self._encoder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
         return self._encoder
 
@@ -125,7 +125,7 @@ class VectorBaseline:
         if groq:
             try:
                 response = groq.chat.completions.create(
-                    model="llama-3.1-8b-instant",
+                    model="qwen/qwen3.6-27b",
                     messages=[
                         {"role": "system", "content": "Answer based only on the provided facts. If facts don't answer, say you don't know."},
                         {"role": "user", "content": f"Question: {question}\n\nFacts:\n{facts_context}\n\nAnswer concisely:"},

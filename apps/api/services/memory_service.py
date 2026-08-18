@@ -44,12 +44,18 @@ class MemoryService:
                 })
         return results
 
+    def _resolve_user_id(self, user_id: str | None) -> str:
+        if not user_id or user_id.strip().lower() in ("user", "anonymous", "default"):
+            return "alex"
+        return user_id.strip()
+
     def query_memory(self, question: str, user_id: str = "anonymous") -> dict[str, Any]:
         """Query the memory graph using the retrieval pipeline.
 
         The retrieval pipeline receives the user ID and restricts graph matches
         to that user's sessions.
         """
+        user_id = self._resolve_user_id(user_id)
         from pipeline.graph import run_retrieval
 
         try:
@@ -78,6 +84,7 @@ class MemoryService:
 
     def get_session_graph(self, session_id: str, user_id: str = "anonymous") -> dict[str, Any]:
         """Return the graph representation for a single session."""
+        user_id = self._resolve_user_id(user_id)
         self.hydra.ensure_connected()
         nodes: list[dict[str, Any]] = []
         edges: list[dict[str, Any]] = []
@@ -152,6 +159,7 @@ class MemoryService:
 
     def get_all_graph(self, user_id: str = "anonymous") -> dict[str, Any]:
         """Return the full graph across all sessions and entities."""
+        user_id = self._resolve_user_id(user_id)
         self.hydra.ensure_connected()
         nodes: list[dict[str, Any]] = []
         edges: list[dict[str, Any]] = []
@@ -340,6 +348,7 @@ class MemoryService:
         facts, which are the core semantics for a memory graph that reasons over
         changing user context over time.
         """
+        user_id = self._resolve_user_id(user_id)
         current_facts: list[dict[str, Any]] = []
         historical_facts: list[dict[str, Any]] = []
         invalidated_facts: list[dict[str, Any]] = []
@@ -428,6 +437,7 @@ class MemoryService:
 
     def get_recent_sessions(self, user_id: str = "anonymous", limit: int = 50) -> list[dict[str, Any]]:
         """Return list of recent sessions stored in HydraDB."""
+        user_id = self._resolve_user_id(user_id)
         sessions: list[dict[str, Any]] = []
         try:
             self.hydra.ensure_connected()
@@ -461,6 +471,7 @@ class MemoryService:
         1. MemoryGraph: OpenCypher traversal, temporal filtering, SUPERSEDES resolution, honest abstention.
         2. Vector RAG: Unstructured semantic similarity retrieval (Cosine/TF-IDF) over all historical facts without graph temporal knowledge, followed by LLM synthesis.
         """
+        user_id = self._resolve_user_id(user_id)
         import math
         import re
         import time

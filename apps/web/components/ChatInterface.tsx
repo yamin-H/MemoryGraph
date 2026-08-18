@@ -14,7 +14,7 @@ interface ChatInterfaceProps {
 export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [userId, setUserId] = useState('user');
+  const [userId, setUserId] = useState('alex');
   const [loading, setLoading] = useState(false);
   const [activeReasoningIdx, setActiveReasoningIdx] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);

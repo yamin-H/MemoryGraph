@@ -21,7 +21,7 @@ import { CodeViewer } from '@/components/CodeViewer';
 
 export default function ArenaPage() {
   const [customQuestion, setCustomQuestion] = useState('');
-  const [userId, setUserId] = useState('user');
+  const [userId, setUserId] = useState('alex');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CompareResponse | null>(null);
   const [error, setError] = useState<string | null>(null);

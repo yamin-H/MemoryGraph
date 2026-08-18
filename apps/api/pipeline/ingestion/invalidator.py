@@ -71,7 +71,7 @@ def detect_invalidations(
     current_session_id: str,
     user_id: str,
     current_timestamp: str,
-    model: str = "llama-3.1-8b-instant",
+    model: str = "openai/gpt-oss-120b",
 ) -> list[dict[str, Any]]:
     """Detect facts that have become stale due to time-bound conditions.
 

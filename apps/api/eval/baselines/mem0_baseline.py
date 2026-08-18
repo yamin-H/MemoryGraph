@@ -23,7 +23,7 @@ class Mem0Baseline:
                     "llm": {
                         "provider": "groq",
                         "config": {
-                            "model": "llama-3.1-8b-instant",
+                            "model": "qwen/qwen3.6-27b",
                             "api_key": self.groq_api_key,
                         }
                     },

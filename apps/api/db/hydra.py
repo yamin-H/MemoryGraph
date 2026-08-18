@@ -1,9 +1,4 @@
-"""HydraDB OSS connection module using the official Bolt driver.
-
-HydraDB (https://github.com/hydra-db/hydradb) exposes a Neo4j-compatible Bolt
-protocol with OpenCypher. MemoryGraph connects to graph-node over Bolt — not
-Neo4j Community Edition.
-"""
+"""HydraDB OSS connection module using the official Bolt driver."""
 
 from __future__ import annotations
 
@@ -23,7 +18,6 @@ HYDRADB_REPO = "https://github.com/hydra-db/hydradb"
 
 
 def build_bolt_auth(token: str) -> tuple[Any, str]:
-    """Build Bolt auth for HydraDB (token or username/password forms)."""
     token = token or DEFAULT_TOKEN
     if "/" in token:
         username, password = token.split("/", 1)
@@ -35,7 +29,6 @@ def build_bolt_auth(token: str) -> tuple[Any, str]:
 
 
 def probe_hydradb_admin(admin_url: str | None = None, timeout: float = 2.0) -> dict[str, Any]:
-    """Check HydraDB admin /readyz — proves graph-node is HydraDB OSS, not Neo4j."""
     admin_url = (admin_url or os.environ.get("HYDRADB_ADMIN_URL", DEFAULT_ADMIN_URL)).rstrip("/")
     try:
         response = httpx.get(f"{admin_url}/readyz", timeout=timeout)
@@ -45,11 +38,7 @@ def probe_hydradb_admin(admin_url: str | None = None, timeout: float = 2.0) -> d
             "status_code": response.status_code,
         }
     except Exception as exc:
-        return {
-            "ready": False,
-            "admin_url": admin_url,
-            "error": str(exc),
-        }
+        return {"ready": False, "admin_url": admin_url, "error": str(exc)}
 
 
 class HydraDB:
@@ -61,9 +50,7 @@ class HydraDB:
         auth_token: str | None = None,
         admin_url: str | None = None,
     ):
-        """Initialize the HydraDB connection client."""
         from config import settings
-
         self.uri = uri or settings.hydra_uri or os.environ.get("HYDRADB_URI", DEFAULT_URI)
         self.auth_token = (
             auth_token
@@ -75,7 +62,6 @@ class HydraDB:
 
     @staticmethod
     def engine_info() -> dict[str, str]:
-        """Metadata for health checks and hackathon demos."""
         return {
             "engine": "HydraDB OSS",
             "image": HYDRADB_IMAGE,
@@ -84,32 +70,24 @@ class HydraDB:
         }
 
     def _build_auth(self):
-        """Build a Bolt auth object for HydraDB."""
         auth, _ = build_bolt_auth(self.auth_token)
         return auth
 
     @property
     def is_connected(self) -> bool:
-        """Return whether the connection is active."""
         return self._driver is not None
 
     def ensure_connected(self) -> None:
-        """Ensure a valid HydraDB driver exists, connecting if needed."""
         if self._driver is None:
             self.connect()
 
     def connect(self) -> None:
-        """Establish a HydraDB connection and validate it."""
         if self._driver is not None:
             return
 
         auth = self._build_auth()
         candidate_uris = [self.uri]
-        if self.uri.startswith("neo4j+s://"):
-            candidate_uris.append(self.uri.replace("neo4j+s://", "bolt+s://", 1))
-        elif self.uri.startswith("bolt+s://"):
-            candidate_uris.append(self.uri.replace("bolt+s://", "neo4j+s://", 1))
-        elif self.uri.startswith("neo4j://"):
+        if self.uri.startswith("neo4j://"):
             candidate_uris.append(self.uri.replace("neo4j://", "bolt://", 1))
         elif self.uri.startswith("bolt://"):
             candidate_uris.append(self.uri.replace("bolt://", "neo4j://", 1))
@@ -136,39 +114,30 @@ class HydraDB:
         raise RuntimeError(f"Unable to connect to HydraDB at {self.uri}: {last_exc}") from last_exc
 
     def close(self) -> None:
-        """Close the connection."""
         if self._driver:
             self._driver.close()
             self._driver = None
 
     def __enter__(self) -> "HydraDB":
-        """Context manager entry, ensuring connection is initialized."""
         self.ensure_connected()
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        """Context manager exit, closing open connection."""
         self.close()
 
     def https_admin_status(self) -> dict[str, Any]:
-        """Probe HydraDB HTTPS admin API — proves multi-protocol graph usage."""
         try:
             admin_url = (self.admin_url or DEFAULT_ADMIN_URL).rstrip("/")
-            # Try the HTTPS port (8443) which is HydraDB's native API
             https_url = admin_url.replace(":9090", ":8443")
             if https_url == admin_url:
-                # admin_url didn't have port 9090, try adding 8443
-                from urllib.parse import urlparse
                 parsed = urlparse(admin_url)
-                base = f"{parsed.scheme}://{parsed.hostname}:8443"
-                https_url = base
+                https_url = f"{parsed.scheme}://{parsed.hostname}:8443"
             response = httpx.get(f"{https_url}/readyz", timeout=2.0)
             return {"https_api": "reachable", "status": response.status_code, "url": https_url}
         except Exception as e:
             return {"https_api": "unavailable", "error": str(e)}
 
     def health_details(self) -> dict[str, Any]:
-        """Return connection and admin readiness for observability."""
         details = {
             **self.engine_info(),
             "bolt_uri": self.uri,
@@ -176,50 +145,16 @@ class HydraDB:
         }
         parsed = urlparse(self.uri)
         host = parsed.hostname or "127.0.0.1"
-        if host in {"hydradb", "localhost"}:
-            admin_url = self.admin_url
-        else:
-            admin_url = f"http://{host}:9090"
+        admin_url = self.admin_url if host in {"hydradb", "localhost"} else f"http://{host}:9090"
         details["admin"] = probe_hydradb_admin(admin_url)
         details["https_api"] = self.https_admin_status()
         return details
 
-    def write_fact(self, fact_id: int, content: str) -> None:
-        """Write a Fact node to the graph.
-
-        HydraDB requires:
-        - Relationship patterns with two distinct nodes (source and destination)
-        - id property must be an integer for both nodes
-        - No MERGE followed by SET
-        """
-        self.ensure_connected()
-        with self._driver.session() as session:
-            session.run(
-                "MERGE (f:Fact {id: $id, content: $content})-[:HAS_FACT]->(a:Anchor {id: $anchor_id})",
-                id=fact_id,
-                content=content,
-                anchor_id=fact_id + 1000000,
-            )
-
-    def read_fact(self, fact_id: int) -> dict | None:
-        """Read a Fact node by ID."""
-        self.ensure_connected()
-        with self._driver.session() as session:
-            result = session.run(
-                "MATCH (f:Fact {id: $id}) RETURN f.id, f.content",
-                id=fact_id,
-            )
-            record = result.single()
-            if record:
-                return {"id": record["f.id"], "content": record["f.content"]}
-            return None
-
     def get_user_cell_id(self, user_id: str) -> str:
-        """Return deterministic physical HydraDB SlateDB cell ID for a given user."""
         return get_user_cell_id(user_id)
 
     def ensure_cell_exists(self, cell_id: str) -> bool:
-        """Call HydraDB admin API to ensure the physical SlateDB cell is provisioned."""
+        """Ensure a HydraDB cell shard exists via the admin API."""
         try:
             admin_url = (self.admin_url or DEFAULT_ADMIN_URL).rstrip("/")
             response = httpx.post(
@@ -231,66 +166,106 @@ class HydraDB:
         except Exception:
             return False
 
-    def execute_in_cell(
-        self,
-        cell_id: str,
-        query: str,
-        params: dict[str, Any] | None = None,
-    ) -> list[dict[str, Any]]:
-        """Route query to a physically isolated HydraDB SlateDB cell via HTTP API or Bolt fallback.
-
-        HydraDB scopes and cells are physically separate SlateDB database instances.
-        The HTTP API routes queries to a specific cell via 'cell_id' in the request body.
-        """
-        params = params or {}
-        # 1. Try HydraDB HTTP query API with cell_id routing
-        try:
-            admin_url = (self.admin_url or DEFAULT_ADMIN_URL).rstrip("/")
-            http_url = admin_url.replace(":9090", ":8443")
-            if http_url == admin_url:
-                parsed = urlparse(admin_url)
-                http_url = f"{parsed.scheme}://{parsed.hostname}:8443"
-
-            headers = {
-                "Authorization": f"Bearer {self.auth_token}",
-                "Content-Type": "application/json",
-            }
-            payload = {
-                "query": query,
-                "params": params,
-                "cell_id": cell_id,
-                "scope": "default",
-            }
-            response = httpx.post(f"{http_url}/query", json=payload, headers=headers, timeout=5.0)
-            if response.status_code == 200:
-                data = response.json()
-                records = data.get("records", data.get("results", []))
-                if isinstance(records, list):
-                    return records
-        except Exception:
-            pass
-
-        # 2. Bolt connection fallback for environments without separate HTTP query port
+    def get_current_facts(self, entity_name: str, fact_type: str | None = None) -> list[dict]:
+        """Retrieve current facts for an entity."""
         self.ensure_connected()
         with self._driver.session() as session:
-            res = session.run(query, **params)
-            return [dict(record) for record in res]
+            if fact_type:
+                result = session.run(
+                    "MATCH (f:Fact {entity_name: $entity_name, fact_type: $fact_type, is_current: true}) "
+                    "RETURN f.fact_id AS fact_id, f.content AS content, f.fact_type AS fact_type, "
+                    "f.confidence AS confidence, f.session_index AS session_index, f.session_date AS session_date "
+                    "ORDER BY f.session_index DESC",
+                    entity_name=entity_name,
+                    fact_type=fact_type,
+                )
+            else:
+                result = session.run(
+                    "MATCH (f:Fact {entity_name: $entity_name, is_current: true}) "
+                    "RETURN f.fact_id AS fact_id, f.content AS content, f.fact_type AS fact_type, "
+                    "f.confidence AS confidence, f.session_index AS session_index, f.session_date AS session_date "
+                    "ORDER BY f.session_index DESC",
+                    entity_name=entity_name,
+                )
+            return [dict(r) for r in result]
+
+    def get_superseded_history(self, entity_name: str, fact_type: str) -> list[dict]:
+        """Get full history of a fact including superseded versions."""
+        self.ensure_connected()
+        with self._driver.session() as session:
+            result = session.run(
+                "MATCH (f:Fact {entity_name: $entity_name, fact_type: $fact_type}) "
+                "RETURN f.content AS content, f.session_index AS session_index, "
+                "f.is_current AS is_current, f.session_date AS session_date "
+                "ORDER BY f.session_index ASC",
+                entity_name=entity_name,
+                fact_type=fact_type,
+            )
+            return [dict(r) for r in result]
+
+    def query_via_http(self, cypher: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Execute an OpenCypher query via HydraDB's native HTTPS REST API.
+
+        Uses HydraDB's /v1/graphs/{namespace}/query endpoint — the native
+        HTTP JSON query interface, distinct from the Bolt protocol path.
+        This demonstrates dual-protocol HydraDB usage (Bolt + HTTP REST).
+
+        Args:
+            cypher: OpenCypher query string
+            params: Optional query parameters
+
+        Returns:
+            Raw JSON response from HydraDB HTTPS API
+        """
+        admin_url = (self.admin_url or DEFAULT_ADMIN_URL).rstrip("/")
+        parsed = urlparse(admin_url)
+        host = parsed.hostname or "127.0.0.1"
+        https_url = f"http://{host}:8443"
+
+        namespace = os.environ.get("GRAPH_NAMESPACE", "default")
+        cell_id = os.environ.get("GRAPH_CELL_ID", "cell-0")
+
+        payload: dict[str, Any] = {"cell_id": cell_id, "query": cypher}
+        if params:
+            payload["params"] = params
+
+        headers = {
+            "Authorization": f"Bearer {self.auth_token}",
+            "X-Graph-Namespace": namespace,
+            "Content-Type": "application/json",
+        }
+
+        try:
+            response = httpx.post(
+                f"{https_url}/v1/graphs/{namespace}/query",
+                json=payload,
+                headers=headers,
+                timeout=10.0,
+            )
+            return {
+                "success": response.status_code == 200,
+                "status_code": response.status_code,
+                "data": response.json() if response.status_code == 200 else None,
+                "protocol": "HydraDB HTTPS REST API",
+                "endpoint": f"{https_url}/v1/graphs/{namespace}/query",
+            }
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "protocol": "HydraDB HTTPS REST API",
+                "fallback": "Using Bolt protocol",
+            }
 
     def clear_all(self) -> None:
-        """Clear all nodes (useful for cleanup)."""
+        """Clear all nodes."""
         self.ensure_connected()
         with self._driver.session() as session:
             session.run("MATCH (n) DELETE n")
 
 
 def get_user_cell_id(user_id: str) -> str:
-    """Return a deterministic physical SlateDB cell ID for a user.
-
-    In HydraDB architecture, each (scope, cell) is an independently stored
-    SlateDB database unit, providing hardware-level data isolation.
-    """
     import hashlib
-
     if not user_id or str(user_id).strip() in ("", "anonymous", "default"):
         return "cell-0"
     h = int(hashlib.md5(user_id.encode("utf-8")).hexdigest(), 16)
@@ -298,31 +273,14 @@ def get_user_cell_id(user_id: str) -> str:
 
 
 def main():
-    """Test HydraDB connection."""
     db = HydraDB()
     db.connect()
     print(f"Connected to HydraDB at {db.uri}")
-    print(f"Engine: {db.engine_info()}")
-
     admin = probe_hydradb_admin()
     if admin.get("ready"):
         print(f"HydraDB admin ready at {admin['admin_url']}/readyz")
-    else:
-        print(f"HydraDB admin not ready: {admin}")
-
-    try:
-        db.write_fact(1, "MemoryGraph is a graph-native agent memory layer")
-        print("Wrote test Fact node: id=1")
-
-        fact = db.read_fact(1)
-        print(f"Read back: {fact}")
-
-        db.clear_all()
-        print("Cleaned up test data")
-
-    finally:
-        db.close()
-        print("Connection closed")
+    db.close()
+    print("Connection closed")
 
 
 if __name__ == "__main__":

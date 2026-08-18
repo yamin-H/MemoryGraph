@@ -21,7 +21,7 @@ import { CodeViewer } from '@/components/CodeViewer';
 
 export default function MultiEntityPage() {
   const [entitiesInput, setEntitiesInput] = useState('Alex, Dhaka');
-  const [userId, setUserId] = useState('user');
+  const [userId, setUserId] = useState('alex');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<MultiEntityResponse | null>(null);
   const [error, setError] = useState<string | null>(null);

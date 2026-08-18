@@ -23,7 +23,7 @@ export default function GraphExplorerPage() {
   const [searchType, setSearchType] = useState<'entity' | 'session'>('entity');
   const [activeEntity, setActiveEntity] = useState<string | undefined>(undefined);
   const [activeSession, setActiveSession] = useState<string | undefined>(undefined);
-  const [userId, setUserId] = useState('user');
+  const [userId, setUserId] = useState('alex');
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

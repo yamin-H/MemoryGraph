@@ -2,16 +2,16 @@
 
 <div align="center">
 
-[![Hack Hydra 2026](https://img.shields.io/badge/Hack_Hydra_2026-Track_03_Grand_Champion_Submission-F59E0B?style=for-the-badge&logo=target&logoColor=black)](https://hydradb.io)
-[![HydraDB Native](https://img.shields.io/badge/HydraDB-OpenCypher_%26_Bolt_Native-059669?style=for-the-badge&logo=neo4j&logoColor=white)](https://hydradb.io)
+[![Hack Hydra 2026](https://img.shields.io/badge/Hack_Hydra_2026-Track_03_Submission-F59E0B?style=for-the-badge&logo=target&logoColor=black)](https://hackhydra.hydradb.com)
+[![HydraDB Native](https://img.shields.io/badge/HydraDB-Bolt_%2B_HTTP_REST_API-059669?style=for-the-badge&logo=neo4j&logoColor=white)](https://github.com/hydra-db/hydradb)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![Next.js 16](https://img.shields.io/badge/Next.js-16_(apps%2Fweb)-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-16.3_(apps%2Fweb)-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 **A Graph-Native Temporal Memory Layer for AI Agents on HydraDB.**  
 *Resolves changing facts across multi-session conversations, tracks historical lineage via `SUPERSEDES` graph edges, and eliminates hallucination with calibrated honest abstention.*
 
-[Live Demo](#-quick-start) • [Architecture](#-architecture) • [Why Graph Beats Vector](#-why-graph-beats-vector-db) • [Benchmarks](#-empirical-benchmarks) • [Python SDK](#-drop-in-python-sdk) • [OpenCypher Traversal](#-how-hydradb-is-used)
+[Quick Start](#-quick-start) • [Architecture](#-architecture) • [Why Graph Beats Vector](#-why-graph-beats-vector-db) • [Benchmarks](#-empirical-benchmarks) • [Python SDK](#-drop-in-python-sdk) • [How HydraDB Is Used](#-how-hydradb-is-used)
 
 </div>
 
@@ -98,14 +98,16 @@ flowchart TD
 
 Evaluated across **LongMemEval**, **LongMemEval V2**, and **BEAM 100K** benchmarks comparing Graph-Native Memory on HydraDB against Dense Vector RAG (pgvector), Long-Context Window Prompting, and Mem0 key-value memory.
 
-### 1. Overall Accuracy & Latency Comparison
+> Pre-computed results are available at `scripts/data/benchmark_results.json`. Rerun with `python scripts/run_benchmark.py`.
+
+### 1. Overall Accuracy & Latency Comparison (Oracle Subset)
 
 | System / Architecture | LongMemEval Accuracy | LongMemEval V2 Accuracy | BEAM Accuracy | Avg Retrieval Latency | Storage Paradigm |
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | **MemoryGraph (HydraDB)** | **100.0%** (8/8) | **100.0%** (4/4) | **100.0%** (2/2) | **~42 ms** | Native OpenCypher Graph (`SUPERSEDES` Lineage) |
 | **Long-Context Prompting** | **75.0%** (6/8) | **100.0%** (4/4) | **100.0%** (2/2) | **~1,840 ms** | Full context re-stuffing (O(N) token cost) |
-| **Mem0 (Key-Value Vector)** | **62.5%** (5/8) | **75.0%** (3/4) | **100.0%** (2/2) | **~305 ms** | Flat entity memory dictionary |
-| **Vector RAG (pgvector / TF-IDF)** | **37.5%** (3/8) | **25.0%** (1/4) | **50.0%** (1/2) | **~140 ms** | Cosine similarity top-k chunk retrieval |
+| **Mem0 (Key-Value Vector)** | **62.5%** (5/8) | **50.0%** (2/4) | **100.0%** (2/2) | **~305 ms** | Flat entity memory dictionary |
+| **Vector RAG (pgvector / TF-IDF)** | **37.5%** (3/8) | **25.0%** (1/4) | **0.0%** (0/2) | **~140 ms** | Cosine similarity top-k chunk retrieval |
 
 ### 2. Breakdown by Evaluation Dimension (LongMemEval)
 
@@ -127,7 +129,6 @@ python scripts/run_benchmark.py
 
 > **HydraDB OSS is required.** MemoryGraph uses the official graph database from
 > [github.com/hydra-db/hydradb](https://github.com/hydra-db/hydradb) — not Neo4j Community.
-> Full setup guide: **[docs/HYDRADB_SETUP.md](docs/HYDRADB_SETUP.md)**
 
 ### 1. Run the Full Stack with Docker (1 Command)
 
@@ -138,28 +139,81 @@ cd memorygraph
 
 # Configure environment (Groq API Key for LLM extraction)
 cp .env.example .env
+# Edit .env and add your GROQ_API_KEY (get it from https://console.groq.com/keys)
 
-# Initialize HydraDB OSS local storage (store/, cache/, auth-token)
+# Initialize HydraDB local storage
 python scripts/setup_hydradb.py
 
-# Pull official HydraDB image + launch full stack
-docker compose pull hydradb
+# Launch full stack (HydraDB, Redis, PostgreSQL, API, Web)
 docker compose up --build
-
-# Optional: vector baseline comparison
-pip install -r requirements-dev.txt
 ```
 
-Verify HydraDB is working (in a second terminal):
+That's it! The stack includes:
+- **HydraDB OSS** (`ghcr.io/hydra-db/hydradb`) — Graph database with OpenCypher over Bolt + HTTP REST API
+- **Redis** — Caching, rate limiting, metrics
+- **PostgreSQL + pgvector** — Vector RAG baseline for benchmarks
+- **FastAPI Backend** — Port 8000, Swagger docs at `/docs`
+- **Next.js Frontend** — Port 3000
+
+Verify services are running:
 
 ```bash
-python scripts/verify_hydradb.py
+# Check HydraDB admin (should return {"ready":true})
+curl http://localhost:9090/readyz
+
+# Check API health (shows dual-protocol HydraDB verification)
+curl http://localhost:8000/health
 ```
 
+> ⚠️ **Important: Seed demo data before exploring the UI!**  
+> Open [http://localhost:3000/ingest](http://localhost:3000/ingest) and click **"1-Click Seed HydraDB"** to load the 35-session demo dataset. Then visit `/arena` and ask: **"Where does Alex live?"**
+
+**Access Points:**
 - **Frontend Dashboard:** [http://localhost:3000](http://localhost:3000)
 - **FastAPI Backend & Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **HydraDB Bolt:** `neo4j://localhost:7687` (graph-node from `ghcr.io/hydra-db/hydradb`)
-- **HydraDB Admin:** [http://localhost:9090/readyz](http://localhost:9090/readyz)
+- **HydraDB Bolt:** `neo4j://localhost:7687` (from `ghcr.io/hydra-db/hydradb`)
+- **HydraDB Admin UI:** [http://localhost:9090](http://localhost:9090)
+
+### 2. Local Development (without Docker)
+
+If you prefer to run services locally:
+
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Install Node dependencies
+cd apps/web && npm install && cd ../..
+
+# Start HydraDB locally (using Docker)
+docker run -d --name hydradb \
+  -p 7687:7687 -p 8443:8443 -p 9090:9090 \
+  -e HYDRA_ADMIN_TOKEN=local-development-token-32-bytes \
+  -v $(pwd)/hydradb-data:/data \
+  ghcr.io/hydra-db/hydradb:latest
+
+# Start Redis (optional, for caching/metrics)
+docker run -d --name redis -p 6379:6379 redis:alpine
+
+# Start PostgreSQL + pgvector (optional, for vector baseline)
+docker run -d --name postgres \
+  -p 5432:5432 \
+  -e POSTGRES_DB=memorygraph_baseline \
+  -e POSTGRES_PASSWORD=postgres \
+  pgvector/pgvector:pg16
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your GROQ_API_KEY
+
+# Run API server
+cd apps/api && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# Run Web frontend (in another terminal)
+cd apps/web && npm run dev
+```
+
+> **Note:** The Groq API key is optional. Without it, MemoryGraph falls back to a built-in rule-based fact extractor and question parser. LLM-powered extraction produces better results but the system works end-to-end without it.
 
 ---
 
@@ -220,11 +274,26 @@ def recall_temporal_memory(user_id: str, question: str) -> str:
 ## 🗄️ How HydraDB Is Used
 
 MemoryGraph runs on **[HydraDB OSS](https://github.com/hydra-db/hydradb)** (`ghcr.io/hydra-db/hydradb`).
-HydraDB is a graph-native database with OpenCypher over Bolt — MemoryGraph uses the
-official Neo4j Python driver to connect to `graph-node`, execute temporal traversals,
-and persist the agent memory graph to object-store-backed durable storage.
 
-HydraDB acts as the authoritative knowledge graph backend, executing high-speed relationship traversals and temporal lineage lookups over binary Bolt protocol (`neo4j://` / `bolt://`).
+### Dual-Protocol Usage
+
+MemoryGraph uses HydraDB through **two distinct protocols**, demonstrating deep integration:
+
+1. **Bolt Protocol** (`neo4j://`): Primary data path for ingestion, traversal, and retrieval pipelines. Uses the official Neo4j Python driver to execute OpenCypher queries directly against HydraDB's graph-native storage.
+
+2. **HydraDB HTTPS REST API** (`/v1/graphs/{namespace}/query`): Used for health verification and confidence evidence aggregation. This is HydraDB's native HTTP JSON query interface — distinct from any Neo4j-compatible interface.
+
+```python
+# Bolt protocol — used for all ingestion & retrieval pipelines
+driver = GraphDatabase.driver("neo4j://hydradb:7687", auth=basic_auth("neo4j", token))
+
+# HydraDB HTTP REST API — used for health checks & evidence aggregation
+httpx.post("http://hydradb:8443/v1/graphs/default/query",
+    json={"cell_id": "cell-0", "query": "RETURN 1 AS ok"},
+    headers={"Authorization": f"Bearer {token}", "X-Graph-Namespace": "default"})
+```
+
+### Graph Schema
 
 ```
 (Session) ──[:CONTAINS]──> (Message)
@@ -286,14 +355,14 @@ $$\text{Confidence Score} = 0.35 \times \text{Coverage} + 0.45 \times \text{Dens
 
 ## 🖥️ Interactive Web Dashboard
 
-The web dashboard is built with **Next.js 16 (App Router)**, **React 19**, and **Tailwind CSS v4**, featuring both **Dark Mode** and **Light Mode** with fine-grained tactile textures:
+The web dashboard is built with **Next.js 16.3 (App Router)**, **React 19**, and **Tailwind CSS v4**, featuring both **Dark Mode** and **Light Mode**:
 
 1. **Live Battle Arena (`/arena`)**: Real-time side-by-side execution testing Vector RAG failure vs. HydraDB `SUPERSEDES` resolution.
 2. **Abstention & Truth Matrix (`/abstention`)**: Interactive test suite demonstrating calibrated honest abstention vs. hallucination on trick questions.
 3. **3D Force Graph Visualizer (`/graph`)**: WebGL/Canvas 2D physics visualizer with active fact node glow, superseded lineage chains, and chronological slider.
 4. **Evaluation Benchmarks (`/benchmark`)**: Interactive benchmark scorecard and background job execution runner on LongMemEval.
 5. **Agent Chat (`/chat`)**: Multi-turn chat interface with live retrieval inspector and confidence badges.
-6. **Ingestion Studio (`/ingest`)**: Multi-session dialogue builder with demo session templates.
+6. **Ingestion Studio (`/ingest`)**: Multi-session dialogue builder with demo session templates and 1-click seeding.
 
 ---
 
@@ -308,7 +377,7 @@ The web dashboard is built with **Next.js 16 (App Router)**, **React 19**, and *
 | `GET` | `/graph/entity/{name}` | Retrieve historical and current fact graph for a specific entity. |
 | `POST` | `/benchmark/run` | Dispatch live background benchmark evaluation worker on LongMemEval dataset. |
 | `GET` | `/benchmark/job/{id}` | Poll real-time progress and sample-by-sample predictions of an active job. |
-| `GET` | `/health` | Health status of API server, HydraDB Bolt cluster, and Redis cache. |
+| `GET` | `/health` | Health status of API server, HydraDB Bolt + HTTP REST API, and Redis cache. |
 
 ---
 
@@ -318,12 +387,12 @@ The web dashboard is built with **Next.js 16 (App Router)**, **React 19**, and *
 memorygraph/
 ├── apps/
 │   ├── api/                      # FastAPI Backend & LangGraph Engine
-│   │   ├── db/hydra.py           # HydraDB Bolt client & OpenCypher driver
+│   │   ├── db/hydra.py           # HydraDB Bolt + HTTP REST API client
 │   │   ├── pipeline/             # LangGraph state machines (ingestion & retrieval)
 │   │   ├── routes/               # REST & SSE endpoints
 │   │   └── eval/                 # LongMemEval & BEAM evaluation runner
 │   │
-│   └── web/                      # Next.js 16 Web Dashboard & 3D Visualizer
+│   └── web/                      # Next.js 16.3 Web Dashboard & 3D Visualizer
 │       ├── app/                  # App router pages (arena, abstention, graph, chat, benchmark)
 │       ├── components/           # UI components, 3D Canvas, CodeViewer, ThemeProvider
 │       └── lib/                  # API client, TypeScript types, hooks
@@ -332,9 +401,16 @@ memorygraph/
 │   ├── client.py                 # MemoryGraph client class
 │   └── models.py                 # Pydantic data models
 │
+├── scripts/
+│   ├── setup_hydradb.py          # Initialize HydraDB local storage
+│   ├── verify_hydradb.py         # Verify Bolt connectivity round-trip
+│   ├── seed_demo.py              # Seed 35-session demo dataset
+│   └── data/benchmark_results.json  # Pre-computed benchmark results
+│
 ├── data/                         # Benchmark evaluation datasets (LongMemEval, BEAM)
+├── tests/                        # Unit, integration, and e2e tests (19 test files)
+├── docs/HYDRADB_SETUP.md         # Detailed HydraDB setup guide (3 methods)
 ├── docker-compose.yml            # Full-stack container orchestration
-├── Dockerfile                    # Backend container definition
 └── pyproject.toml                # Python package metadata
 ```
 
@@ -342,8 +418,9 @@ memorygraph/
 
 ## 📜 Dataset Attribution & Credits
 - **LongMemEval Benchmark**: [Xiaowu et al.](https://github.com/xiaowu0162/LongMemEval)
+- **LongMemEval V2 Benchmark**: [Xiaowu et al.](https://github.com/xiaowu0162/LongMemEval-V2)
 - **BEAM Evaluator**: [Tavakoli et al.](https://github.com/mohammadtavakoli78/BEAM)
-- **Built for**: [Hack Hydra 2026](https://hydradb.io) — Track 03: Memory & Context Retrieval
+- **Built for**: [Hack Hydra 2026](https://hackhydra.hydradb.com) — Track 03: Memory & Context Retrieval
 
 ---
 

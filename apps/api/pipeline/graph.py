@@ -163,8 +163,13 @@ def detect_supersessions_node(state: PipelineState) -> dict[str, Any]:
     print("  [5/8] Detecting supersessions...")
 
     api_key = os.environ.get("GROQ_API_KEY")
-    client = Groq(api_key=api_key)
     facts = state.get("facts", [])
+
+    if not api_key or api_key.startswith("gsk_mock_") or api_key.startswith("gsk_demo_") or api_key.strip() == "":
+        print("       GROQ_API_KEY not provided — skipping LLM supersession detection.")
+        return {"supersessions": []}
+
+    client = Groq(api_key=api_key)
 
     hydra = _get_hydra()
     try:
@@ -188,11 +193,16 @@ def detect_invalidations_node(state: PipelineState) -> dict[str, Any]:
     print("  [6/8] Detecting invalidations...")
 
     api_key = os.environ.get("GROQ_API_KEY")
-    client = Groq(api_key=api_key)
     session = state["session"]
     session_id = session.get("session_id", "unknown")
     user_id = session.get("user_id", "unknown")
     current_timestamp = session.get("started_at") or datetime.now(timezone.utc).isoformat()
+
+    if not api_key or api_key.startswith("gsk_mock_") or api_key.startswith("gsk_demo_") or api_key.strip() == "":
+        print("       GROQ_API_KEY not provided — skipping LLM invalidation detection.")
+        return {"invalidations": []}
+
+    client = Groq(api_key=api_key)
 
     hydra = _get_hydra()
     try:
@@ -396,18 +406,26 @@ def parse_question_node(state: RetrievalState) -> dict[str, Any]:
     print("  [1/6] Parsing question...")
 
     api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        return {"error": "GROQ_API_KEY not set", "failed_step": "parse_question"}
+    question = state["question"]
+
+    if not api_key or api_key.startswith("gsk_mock_") or api_key.startswith("gsk_demo_") or api_key.strip() == "":
+        print("       GROQ_API_KEY not provided — using rule-based question parser.")
+        from pipeline.retrieval.parser import _fallback_parse_question
+        parsed = _fallback_parse_question(question)
+        print(f"       Entity: {parsed.get('entity_name')}, Type: {parsed.get('question_type')}")
+        return {"parsed_question": parsed}
 
     client = Groq(api_key=api_key)
-    question = state["question"]
 
     try:
         parsed = with_retry(parse_question, client, question)
         print(f"       Entity: {parsed.get('entity_name')}, Type: {parsed.get('question_type')}")
         return {"parsed_question": parsed}
     except Exception as e:
-        return {"error": str(e), "failed_step": "parse_question"}
+        print(f"       Groq parse failed ({e}) — falling back to rule-based parser.")
+        from pipeline.retrieval.parser import _fallback_parse_question
+        parsed = _fallback_parse_question(question)
+        return {"parsed_question": parsed}
 
 
 def graph_traversal_node(state: RetrievalState) -> dict[str, Any]:
@@ -545,7 +563,7 @@ Active Facts:
 Direct Answer:"""
 
                 response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
+                    model="qwen/qwen3.6-27b",
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},

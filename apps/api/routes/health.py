@@ -52,6 +52,10 @@ async def health_check(request: Request) -> dict[str, Any]:
                 entities_tracked = session.run(
                     "MATCH (e:Entity) RETURN count(*) AS cnt"
                 ).single()["cnt"] or 0
+
+            # Dual-protocol verification: also probe HydraDB HTTP REST API
+            http_result = hydra_db.query_via_http("RETURN 1 AS ok")
+            hydradb_details["http_api"] = http_result
         else:
             status["hydradb"] = "error"
             hydradb_details["connected"] = False
@@ -85,7 +89,7 @@ async def health_check(request: Request) -> dict[str, Any]:
         if api_key:
             client = Groq(api_key=api_key)
             client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="qwen/qwen3.6-27b",
                 messages=[{"role": "user", "content": "ping"}],
                 max_tokens=1,
             )

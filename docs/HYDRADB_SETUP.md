@@ -223,10 +223,14 @@ curl -sS http://127.0.0.1:8443/v1/graphs/default/query `
 ## What to tell Hack Hydra judges
 
 > MemoryGraph stores all agent memories in **HydraDB OSS** (`github.com/hydra-db/hydradb`). Facts are `Fact` nodes, entities are `Entity` nodes, and temporal updates use native `SUPERSEDES` graph edges queried via OpenCypher over Bolt. Without HydraDB, the system cannot resolve which fact is currently true across 35+ sessions.
+>
+> MemoryGraph uses **two distinct HydraDB protocols**: Bolt for all data pipelines and the **HydraDB HTTPS REST API** (`/v1/graphs/{namespace}/query`) for health verification and evidence aggregation — demonstrating deep integration beyond simple Bolt-only usage.
 
 Point judges to:
 
-1. `docker-compose.yml` → `ghcr.io/hydra-db/hydradb:latest`
+1. `docker-compose.yml` → `ghcr.io/hydra-db/hydradb:0.1.1`
 2. `scripts/verify_hydradb.py` → round-trip proof
-3. `/graph` page → live SUPERSEDES visualization
-4. `apps/api/pipeline/ingestion/writer.py` → OpenCypher MERGE writes
+3. `apps/api/db/hydra.py` → `query_via_http()` method using HydraDB HTTPS REST API
+4. `/health` endpoint → shows dual-protocol verification (Bolt + HTTP REST API)
+5. `/graph` page → live SUPERSEDES visualization
+6. `apps/api/pipeline/ingestion/writer.py` → OpenCypher MERGE writes

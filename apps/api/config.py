@@ -21,7 +21,7 @@ class Settings:
         self.hydra_admin_url = os.environ.get("HYDRADB_ADMIN_URL", "http://127.0.0.1:9090")
         self.redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
         self.groq_api_key = os.environ.get("GROQ_API_KEY")
-        self.groq_model = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
+        self.groq_model = os.environ.get("GROQ_MODEL", "qwen/qwen3.6-27b")
         self.graph_namespace = os.environ.get("GRAPH_NAMESPACE", "default")
         self.graph_cell_id = os.environ.get("GRAPH_CELL_ID", "cell-0")
 

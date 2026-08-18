@@ -68,7 +68,7 @@ def detect_supersession(
     hydra: HydraDB,
     new_facts: list[dict[str, Any]],
     user_id: str,
-    model: str = "llama-3.1-8b-instant",
+    model: str = "openai/gpt-oss-120b",
 ) -> list[dict[str, Any]]:
     """Detect facts that should be superseded by new facts.
 

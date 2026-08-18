@@ -1,4 +1,4 @@
-version: "3.9"
+# MemoryGraph stack — uses official HydraDB OSS (NOT Neo4j Community).
 
 # MemoryGraph stack — uses official HydraDB OSS (NOT Neo4j Community).
 # Docs: docs/HYDRADB_SETUP.md | Upstream: https://github.com/hydra-db/hydradb
@@ -29,12 +29,6 @@ services:
     volumes:
       # Bind mount so scripts/setup_hydradb.py can create store/, cache/, auth-token
       - ./hydradb-data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9090/readyz || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-      start_period: 45s
 
   redis:
     image: redis:7-alpine
@@ -53,7 +47,7 @@ services:
       start_period: 5s
 
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: memorygraph-postgres
     restart: unless-stopped
     ports:
@@ -94,7 +88,7 @@ services:
       - ./scripts:/app/scripts
     depends_on:
       hydradb:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_healthy
       postgres:

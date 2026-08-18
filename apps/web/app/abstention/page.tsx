@@ -19,7 +19,7 @@ import { CodeViewer } from '@/components/CodeViewer';
 
 export default function AbstentionPage() {
   const [question, setQuestion] = useState('');
-  const [userId, setUserId] = useState('user');
+  const [userId, setUserId] = useState('alex');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<AbstentionInspectionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
