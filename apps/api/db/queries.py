@@ -18,31 +18,31 @@ All queries follow HydraDB constraints:
 # Create a Session node
 # Requires an anchor node to satisfy HydraDB's two-node MERGE requirement
 CREATE_SESSION = """
-MERGE (s:Session {id: $session_id, user_id: $user_id, started_at: $started_at, status: $status})-[:SESSION_ANCHOR]->(:SessionAnchor {id: $anchor_id})
+MERGE (s:Session {id: $session_id, user_id: $user_id, started_at: $started_at, status: $status})-[:SESSION_ANCHOR]->(sa:SessionAnchor {id: $anchor_id})
 """
 
 # Create a Message node
 # Linked to an anchor to satisfy MERGE constraint
 CREATE_MESSAGE = """
-MERGE (m:Message {id: $message_id, role: $role, content: $content, created_at: $created_at})-[:MESSAGE_ANCHOR]->(:MessageAnchor {id: $anchor_id})
+MERGE (m:Message {id: $message_id, role: $role, content: $content, created_at: $created_at})-[:MESSAGE_ANCHOR]->(ma:MessageAnchor {id: $anchor_id})
 """
 
 # Create a Summary node
 # Contains condensed session information
 CREATE_SUMMARY = """
-MERGE (sum:Summary {id: $summary_id, content: $content, created_at: $created_at, token_count: $token_count})-[:SUMMARY_ANCHOR]->(:SummaryAnchor {id: $anchor_id})
+MERGE (sum:Summary {id: $summary_id, content: $content, created_at: $created_at, token_count: $token_count})-[:SUMMARY_ANCHOR]->(sma:SummaryAnchor {id: $anchor_id})
 """
 
 # Create a Fact node
 # Represents a piece of information extracted from conversation
 CREATE_FACT = """
-MERGE (f:Fact {id: $fact_id, content: $content, confidence: $confidence, is_current: $is_current, created_at: $created_at})-[:FACT_ANCHOR]->(:FactAnchor {id: $anchor_id})
+MERGE (f:Fact {id: $fact_id, content: $content, confidence: $confidence, is_current: $is_current, created_at: $created_at})-[:FACT_ANCHOR]->(fa:FactAnchor {id: $anchor_id})
 """
 
 # Create an Entity node
 # Represents a person, place, thing, or concept mentioned in facts
 CREATE_ENTITY = """
-MERGE (e:Entity {id: $entity_id, name: $name, type: $entity_type})-[:ENTITY_ANCHOR]->(:EntityAnchor {id: $anchor_id})
+MERGE (e:Entity {id: $entity_id, name: $name, type: $entity_type})-[:ENTITY_ANCHOR]->(ea:EntityAnchor {id: $anchor_id})
 """
 
 # -----------------------------------------------------------------------------
@@ -184,7 +184,7 @@ ORDER BY older.created_at DESC
 # Find orphan facts (not linked to any session)
 FIND_ORPHAN_FACTS = """
 MATCH (f:Fact)
-WHERE NOT (f)-[:OCCURRED_IN]->(:Session)
+WHERE NOT (f)-[:OCCURRED_IN]->(orphan_sess:Session)
 RETURN f.id, f.content, f.created_at
 """
 

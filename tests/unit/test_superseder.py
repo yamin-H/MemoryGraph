@@ -17,7 +17,9 @@ class TestSupersession:
             {"fact_id": 3, "content": "Alex works as a tech lead", "entity_name": "Alex"},
         ]
 
-        supersessions = detect_supersession(mock_groq_supersession, mock_hydradb, new_facts)
+        supersessions = detect_supersession(
+            mock_groq_supersession, mock_hydradb, new_facts, user_id="alex"
+        )
 
         assert isinstance(supersessions, list)
         # Should detect at least one supersession
@@ -42,7 +44,7 @@ class TestSupersession:
         mock_response.choices[0].message.content = '{"contradictions": []}'
         groq_mock.chat.completions.create = MagicMock(return_value=mock_response)
 
-        supersessions = detect_supersession(groq_mock, mock_hydradb, new_facts)
+        supersessions = detect_supersession(groq_mock, mock_hydradb, new_facts, user_id="alex")
 
         assert supersessions == []
 
@@ -54,7 +56,9 @@ class TestSupersession:
             {"fact_id": 2, "content": "Alex lives in Dhaka", "entity_name": "Alex"},
         ]
 
-        supersessions = detect_supersession(mock_groq_supersession, mock_hydradb, new_facts)
+        supersessions = detect_supersession(
+            mock_groq_supersession, mock_hydradb, new_facts, user_id="alex"
+        )
 
         # Find the location supersession
         location_ss = [s for s in supersessions if "lives" in s.get("reason", "").lower() or "dhaka" in s.get("reason", "").lower()]

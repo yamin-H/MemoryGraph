@@ -28,7 +28,7 @@ export default function BenchmarkPage() {
             <span>Temporal Fact Updates</span>
           </div>
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-            Up to +19% gain on superseded facts using recursive <code className="text-amber-700 dark:text-amber-300 font-mono font-bold bg-amber-500/10 px-1 rounded">SUPERSEDES</code> edges in HydraDB.
+            Resolves revised facts through recursive <code className="text-amber-700 dark:text-amber-300 font-mono font-bold bg-amber-500/10 px-1 rounded">SUPERSEDES</code> edges in HydraDB. Run the benchmark to view measured results.
           </p>
         </div>
 
@@ -38,7 +38,7 @@ export default function BenchmarkPage() {
             <span>Multi-Session Synthesis</span>
           </div>
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-            Links entities and facts across non-contiguous dialogues spanning multiple days with zero context loss.
+            Links entities and facts across non-contiguous dialogues while retaining explicit session provenance.
           </p>
         </div>
 
@@ -48,7 +48,7 @@ export default function BenchmarkPage() {
             <span>Calibrated Abstention</span>
           </div>
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-            Abstains gracefully with zero hallucinations when information was never discussed.
+            Returns abstention as a first-class result when the graph has insufficient verified support.
           </p>
         </div>
       </div>

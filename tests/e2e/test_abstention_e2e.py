@@ -171,12 +171,15 @@ def test_abstention_confidence_threshold_behavior(hydradb_client, sample_session
 
     # High confidence - no abstention
     result = run_retrieval("Where does Alex live?")
-    assert result.get("abstained") is False
-    assert result.get("confidence", 0) >= 0.7
+    answer = result.get("answer", {})
+    assert answer.get("abstained") is False
+    assert answer.get("confidence", 0) >= 0.7
 
     # Low confidence - abstention
     result = run_retrieval("What is Alex's favorite color?")
-    assert result.get("abstained") is True or result.get("confidence", 1) < 0.5
+    answer = result.get("answer", {})
+    assert answer.get("abstained") is True
+    assert answer.get("confidence", 1) < 0.35
 
 
 if __name__ == "__main__":

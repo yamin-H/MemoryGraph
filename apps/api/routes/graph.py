@@ -11,7 +11,7 @@ service = MemoryService()
 
 
 @router.get("/session/{session_id}")
-async def get_session_graph(session_id: str) -> dict[str, Any]:
+async def get_session_graph(session_id: str, user_id: str) -> dict[str, Any]:
     """Get all nodes and edges for a session.
 
     Returns data formatted for react-force-graph.
@@ -22,11 +22,11 @@ async def get_session_graph(session_id: str) -> dict[str, Any]:
     Returns:
         Graph data with nodes and edges arrays
     """
-    return service.get_session_graph(session_id)
+    return service.get_session_graph(session_id, user_id=user_id)
 
 
 @router.get("/entity/{entity_name}")
-async def get_entity_history(entity_name: str) -> dict[str, Any]:
+async def get_entity_history(entity_name: str, user_id: str) -> dict[str, Any]:
     """Get full fact history for an entity.
 
     Includes SUPERSEDES chain traversal.
@@ -37,11 +37,11 @@ async def get_entity_history(entity_name: str) -> dict[str, Any]:
     Returns:
         Entity data with current facts and historical facts
     """
-    return service.get_entity_history(entity_name)
+    return service.get_entity_history(entity_name, user_id=user_id)
 
 
 @router.get("/all")
-async def get_all_graph() -> dict[str, Any]:
+async def get_all_graph(user_id: str) -> dict[str, Any]:
     """Get all nodes and edges across the entire graph.
 
     Returns data formatted for react-force-graph.
@@ -49,11 +49,10 @@ async def get_all_graph() -> dict[str, Any]:
     Returns:
         Graph data with nodes and edges arrays
     """
-    return service.get_all_graph()
+    return service.get_all_graph(user_id=user_id)
 
 
 @router.get("/sessions")
-async def get_sessions(limit: int = 50) -> list[dict[str, Any]]:
+async def get_sessions(user_id: str, limit: int = 50) -> list[dict[str, Any]]:
     """Get recent sessions stored in the memory graph."""
-    return service.get_recent_sessions(limit=limit)
-
+    return service.get_recent_sessions(user_id=user_id, limit=limit)

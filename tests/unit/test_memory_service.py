@@ -61,3 +61,25 @@ def test_query_memory_accepts_user_context_and_get_entity_memory_tracks_temporal
 
     temporal = service.get_entity_memory("Alex")
     assert set(temporal.keys()) >= {"entity_name", "current_facts", "historical_facts", "invalidated_facts"}
+
+
+def test_inspect_abstention_returns_valid_structure():
+    """inspect_abstention should return full structured trace matching AbstentionInspectionResponse."""
+    service = MemoryService()
+    service.hydra.ensure_connected = MagicMock()
+    mock_driver = MagicMock()
+    mock_session = MagicMock()
+    mock_driver.session.return_value.__enter__.return_value = mock_session
+    service.hydra._driver = mock_driver
+
+    # Mock empty entity and facts for abstention
+    mock_session.run.return_value = MagicMock(single=MagicMock(return_value=None), __iter__=lambda self: iter([]))
+
+    resp = service.inspect_abstention("What is Alex's car model?", user_id="alex")
+    assert resp["abstention_triggered"] is True
+    assert "extracted_entities" in resp
+    assert "confidence_breakdown" in resp
+    assert resp["confidence_breakdown"]["threshold"] == 0.35
+    assert "opencypher_inspection" in resp
+    assert "MATCH (f:Fact)" in resp["opencypher_inspection"]
+

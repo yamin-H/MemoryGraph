@@ -16,7 +16,7 @@ export interface HealthStatus {
   status: string;
   services?: {
     api?: { status: string };
-    hydradb?: { status: string };
+    hydradb?: { status: string; connected?: boolean };
     redis?: { status: string };
     groq?: { status: string };
   };
@@ -78,6 +78,8 @@ export interface GraphEdge {
 export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  user_id?: string;
+  cell_id?: string;
 }
 
 export interface QueryResponse {
@@ -211,12 +213,45 @@ export interface AbstentionInspectionResponse {
   extracted_entities: ExtractedEntityCheck[];
   subgraph_nodes_found: number;
   confidence_breakdown: ConfidenceBreakdown;
+  graph_evidence?: Record<string, { supporting_facts: number; related_entities: number }>;
   abstention_triggered: boolean;
   abstention_reason: string;
   verified_answer: string;
   hallucination_simulation: string;
   related_facts_in_graph: string[];
   opencypher_inspection: string;
+}
+
+export interface MultiEntityFactChainItem {
+  fact_id: string | number;
+  content: string;
+  is_current: boolean;
+  created_at: string;
+}
+
+export interface MultiEntityPathItem {
+  path_id: string;
+  length: number;
+  start_entity: string;
+  end_entity: string;
+  fact_chain: MultiEntityFactChainItem[];
+}
+
+export interface MultiEntityResponse {
+  user_id: string;
+  entities: string[];
+  procedure: string;
+  paths_found: number;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  paths: MultiEntityPathItem[];
+  facts: Array<{
+    fact_id: string | number;
+    content: string;
+    confidence: number;
+    is_current: boolean;
+    created_at: string;
+  }>;
 }
 
 

@@ -22,7 +22,15 @@ class TestConfidence:
             "original_question": "Where does Alex live and work?",
         }
 
-        result = calculate_confidence(facts_used, abstention_result, parsed_question)
+        result = calculate_confidence(
+            facts_used,
+            abstention_result,
+            parsed_question,
+            graph_evidence={
+                "1": {"supporting_facts": 3, "related_entities": 1},
+                "2": {"supporting_facts": 3, "related_entities": 1},
+            },
+        )
 
         assert "score" in result
         assert "reasoning" in result
@@ -44,7 +52,12 @@ class TestConfidence:
             "original_question": "Where does Alex live?",
         }
 
-        result = calculate_confidence(facts_used, abstention_result, parsed_question)
+        result = calculate_confidence(
+            facts_used,
+            abstention_result,
+            parsed_question,
+            graph_evidence={"1": {"supporting_facts": 3, "related_entities": 1}},
+        )
 
         assert result["score"] == 0.0
         assert "no supporting facts" in result["reasoning"].lower()
@@ -64,11 +77,33 @@ class TestConfidence:
             "original_question": "Where does Alex live?",
         }
 
-        result = calculate_confidence(facts_used, abstention_result, parsed_question)
+        result = calculate_confidence(
+            facts_used,
+            abstention_result,
+            parsed_question,
+            graph_evidence={"1": {"supporting_facts": 3, "related_entities": 1}},
+        )
 
-        # Base 0.5 + 1 fact (0.1) + recency (0.1) = 0.7, minus conflict (0.1) = 0.6
-        # Test that conflict penalty is applied
+        # The graph-evidence score must explicitly record the conflict penalty.
         assert "conflict" in result["reasoning"].lower()
+
+    def test_enforce_confidence_threshold_abstains_before_synthesis(self):
+        """Test a score below tau becomes an abstention result."""
+        from apps.api.pipeline.retrieval.confidence import enforce_confidence_threshold
+
+        result = enforce_confidence_threshold(
+            {
+                "should_abstain": False,
+                "abstention_reason": None,
+                "facts_to_use": [{"content": "Weakly related fact"}],
+                "has_conflict": False,
+            },
+            {"score": 0.34},
+        )
+
+        assert result["should_abstain"] is True
+        assert "below the verification threshold" in result["abstention_reason"]
+        assert result["facts_to_use"] == []
 
 
 if __name__ == "__main__":

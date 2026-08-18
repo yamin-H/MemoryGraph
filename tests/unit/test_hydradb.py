@@ -151,14 +151,53 @@ class TestHydraDB:
         with patch("apps.api.db.hydra.GraphDatabase.driver") as mock_driver:
             mock_session = MagicMock()
             mock_driver.return_value.session.return_value.__enter__.return_value = mock_session
-
             db = HydraDB()
-            db.connect()
+            db._driver = mock_driver.return_value
             db.clear_all()
 
             mock_session.run.assert_called_once()
             call_args = mock_session.run.call_args
             assert "MATCH (n) DELETE n" in call_args[0][0]
+
+    def test_get_user_cell_id_deterministic(self):
+        """Test get_user_cell_id returns a deterministic cell-0..7 string."""
+        from apps.api.db.hydra import get_user_cell_id, HydraDB
+
+        db = HydraDB()
+        cell_alex = get_user_cell_id("alex")
+        assert cell_alex.startswith("cell-")
+        assert get_user_cell_id("alex") == cell_alex
+        assert db.get_user_cell_id("alex") == cell_alex
+        assert get_user_cell_id("") == "cell-0"
+        assert get_user_cell_id("anonymous") == "cell-0"
+
+    def test_ensure_cell_exists_admin_probe(self):
+        """Test ensure_cell_exists calls admin cells API."""
+        from apps.api.db.hydra import HydraDB
+
+        db = HydraDB()
+        with patch("apps.api.db.hydra.httpx.post") as mock_post:
+            mock_post.return_value = MagicMock(status_code=200)
+            res = db.ensure_cell_exists("cell-3")
+            assert res is True
+            mock_post.assert_called_once()
+
+    def test_execute_in_cell_fallback_to_bolt(self):
+        """Test execute_in_cell falls back to bolt session when HTTP unavailable."""
+        from apps.api.db.hydra import HydraDB
+
+        with patch("apps.api.db.hydra.GraphDatabase.driver") as mock_driver:
+            mock_session = MagicMock()
+            mock_driver.return_value.session.return_value.__enter__.return_value = mock_session
+
+            mock_record = {"f.id": 1, "f.content": "Fact in cell-3"}
+            mock_session.run.return_value = [mock_record]
+
+            db = HydraDB()
+            db.connect()
+            records = db.execute_in_cell("cell-3", "MATCH (f:Fact) RETURN f.id, f.content")
+            assert len(records) == 1
+            assert records[0]["f.id"] == 1
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ Wires together all pipeline steps into cohesive workflows.
 
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypedDict
 from dotenv import load_dotenv
@@ -20,10 +21,10 @@ from pipeline.ingestion.supersession import detect_supersession
 from pipeline.ingestion.invalidator import detect_invalidations
 from pipeline.ingestion.writer import write_to_hydradb
 from pipeline.retrieval.parser import parse_question
-from pipeline.retrieval.traversal import traverse_for_question
+from pipeline.retrieval.traversal import get_confidence_evidence, traverse_for_question, multi_entity_retrieval
 from pipeline.retrieval.ranker import rank_facts_by_time
 from pipeline.retrieval.abstention import check_abstention
-from pipeline.retrieval.confidence import calculate_confidence
+from pipeline.retrieval.confidence import calculate_confidence, enforce_confidence_threshold
 
 
 # Load environment
@@ -168,7 +169,12 @@ def detect_supersessions_node(state: PipelineState) -> dict[str, Any]:
     hydra = _get_hydra()
     try:
         hydra.connect()
-        supersessions = detect_supersession(client, hydra, facts)
+        supersessions = detect_supersession(
+            client,
+            hydra,
+            facts,
+            user_id=state["session"].get("user_id", "unknown"),
+        )
         print(f"       Found {len(supersessions)} supersessions")
         return {"supersessions": supersessions}
     except Exception as e:
@@ -185,11 +191,19 @@ def detect_invalidations_node(state: PipelineState) -> dict[str, Any]:
     client = Groq(api_key=api_key)
     session = state["session"]
     session_id = session.get("session_id", "unknown")
+    user_id = session.get("user_id", "unknown")
+    current_timestamp = session.get("started_at") or datetime.now(timezone.utc).isoformat()
 
     hydra = _get_hydra()
     try:
         hydra.connect()
-        invalidations = detect_invalidations(client, hydra, session_id)
+        invalidations = detect_invalidations(
+            client,
+            hydra,
+            session_id,
+            user_id=user_id,
+            current_timestamp=current_timestamp,
+        )
         print(f"       Found {len(invalidations)} invalidations")
         return {"invalidations": invalidations}
     except Exception as e:
@@ -403,7 +417,19 @@ def graph_traversal_node(state: RetrievalState) -> dict[str, Any]:
     hydra = HydraDB()
     try:
         hydra.connect()
-        facts = traverse_for_question(hydra, state["parsed_question"])
+        parsed = state.get("parsed_question", {})
+        entities = parsed.get("entities") or ([parsed.get("entity_name")] if parsed.get("entity_name") else [])
+        entities = [e for e in entities if e and str(e).lower() not in ("user", "me", "i", "anonymous")]
+
+        if len(entities) > 1:
+            print(f"       Multi-entity query ({len(entities)} entities: {entities}) -> Executing HydraDB algo.MSpaths")
+            facts = multi_entity_retrieval(hydra, entities, user_id=state.get("user_id") or "anonymous")
+            if not facts and parsed.get("entity_name"):
+                # Fallback to single-entity traversal if multi-entity path produced no direct hits
+                facts = traverse_for_question(hydra, parsed, user_id=state.get("user_id"))
+        else:
+            facts = traverse_for_question(hydra, parsed, user_id=state.get("user_id"))
+
         print(f"       Retrieved {len(facts)} facts")
         return {"retrieved_facts": facts}
     except Exception as e:
@@ -446,15 +472,31 @@ def score_confidence_node(state: RetrievalState) -> dict[str, Any]:
     """Node: Calculate confidence score for the answer."""
     print("  [5/6] Scoring confidence...")
 
+    facts_to_use = state["abstention_result"].get("facts_to_use", [])
+    graph_evidence: dict[str, dict[str, int]] = {}
+    if facts_to_use:
+        hydra = HydraDB()
+        try:
+            hydra.connect()
+            graph_evidence = get_confidence_evidence(hydra, facts_to_use, state.get("user_id") or "anonymous")
+        except Exception as exc:
+            return {"error": str(exc), "failed_step": "score_confidence"}
+        finally:
+            hydra.close()
+
     result = calculate_confidence(
-        state["abstention_result"].get("facts_to_use", []),
+        facts_to_use,
         state["abstention_result"],
         state["parsed_question"],
+        graph_evidence=graph_evidence,
     )
+    abstention_result = enforce_confidence_threshold(state["abstention_result"], result)
 
     print(f"       Score: {result['score']}")
+    if abstention_result["should_abstain"] and not state["abstention_result"]["should_abstain"]:
+        print(f"       ABSTAIN: {abstention_result['abstention_reason']}")
 
-    return {"confidence_result": result}
+    return {"confidence_result": result, "abstention_result": abstention_result}
 
 
 def generate_answer_node(state: RetrievalState) -> dict[str, Any]:
@@ -491,9 +533,9 @@ def generate_answer_node(state: RetrievalState) -> dict[str, Any]:
 
                 system_prompt = """You are an authoritative AI agent answering user questions using facts retrieved from a knowledge graph.
 Rules:
-- The facts describe the user (named Alex). Always refer to the user by name (Alex) or as requested in the question.
-- Do NOT output meta-commentary like "The facts mention the user, not Alex".
-- Answer the question directly in 1-2 clear sentences using only the verified facts provided."""
+- Answer the question directly in 1-2 clear sentences using ONLY the verified facts provided.
+- Do not add information not present in the facts.
+- If facts refer to a person by name, use that name. Otherwise answer generically."""
 
                 user_prompt = f"""Question: {question}
 
@@ -583,18 +625,23 @@ def build_retrieval_pipeline() -> StateGraph:
 
     graph.add_edge("abstention_check", "score_confidence")
 
-    graph.add_edge("score_confidence", "generate_answer")
+    graph.add_conditional_edges(
+        "score_confidence",
+        check_retrieval_error,
+        {"end": END, "continue": "generate_answer"},
+    )
 
     graph.add_edge("generate_answer", END)
 
     return graph
 
 
-def run_retrieval(question: str) -> dict[str, Any]:
+def run_retrieval(question: str, user_id: str | None = None) -> dict[str, Any]:
     """Run the full retrieval pipeline.
 
     Args:
         question: Natural language question
+        user_id: Optional user ID to scope retrieval (prevents cross-user contamination)
 
     Returns:
         Final state with answer or error information
@@ -608,6 +655,7 @@ def run_retrieval(question: str) -> dict[str, Any]:
 
     initial_state: RetrievalState = {
         "question": question,
+        "user_id": user_id,
         "parsed_question": {},
         "retrieved_facts": [],
         "ranked_facts": [],

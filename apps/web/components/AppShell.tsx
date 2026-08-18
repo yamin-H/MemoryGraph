@@ -18,6 +18,7 @@ import {
   Swords,
   ShieldCheck,
   Sparkles,
+  Workflow,
 } from 'lucide-react';
 import { useHealth } from '@/lib/hooks';
 import { ToastContainer } from './Toast';
@@ -27,6 +28,7 @@ const navItems = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
   { href: '/arena', label: 'Battle Arena', icon: Swords, badge: 'VS', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
   { href: '/abstention', label: 'Abstention', icon: ShieldCheck, badge: 'TRUTH', badgeColor: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
+  { href: '/multi-entity', label: 'Multi-Entity', icon: Workflow, badge: 'GRAPHBLAS', badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' },
   { href: '/chat', label: 'Agent Chat', icon: MessageSquare },
   { href: '/graph', label: 'Graph Explorer', icon: Network },
   { href: '/benchmark', label: 'Benchmarks', icon: BarChart3 },
@@ -39,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { health } = useHealth();
 
-  const isHealthy = health?.status === 'ok';
+  const isHealthy = health?.services?.hydradb?.connected === true;
 
   return (
     <div className="flex h-screen overflow-hidden bg-transparent text-slate-900 dark:text-slate-100 antialiased font-sans transition-colors duration-200">

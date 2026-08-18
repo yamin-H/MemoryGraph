@@ -24,6 +24,7 @@ import { EmptyState } from './EmptyState';
 interface MemoryGraphProps {
   entityName?: string;
   sessionId?: string;
+  userId?: string;
 }
 
 interface TimelineStep {
@@ -64,13 +65,14 @@ const EDGE_COLORS_LIGHT: Record<string, string> = {
   HAS_SUMMARY: '#9333ea99',
 };
 
-export function MemoryGraph({ entityName, sessionId }: MemoryGraphProps) {
+export function MemoryGraph({ entityName, sessionId, userId = 'user' }: MemoryGraphProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
   const [rawData, setRawData] = useState<GraphData>({ nodes: [], edges: [] });
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [visibleTypes, setVisibleTypes] = useState<Record<string, boolean>>({
     Entity: true,
     Fact: true,
@@ -87,20 +89,22 @@ export function MemoryGraph({ entityName, sessionId }: MemoryGraphProps) {
     try {
       let data: GraphData;
       if (entityName) {
-        data = await api.getEntityGraph(entityName);
+        data = await api.getEntityGraph(entityName, userId);
       } else if (sessionId) {
-        data = await api.getSessionGraph(sessionId);
+        data = await api.getSessionGraph(sessionId, userId);
       } else {
-        data = await api.getAllGraphs();
+        data = await api.getAllGraphs(userId);
       }
       setRawData(data || { nodes: [], edges: [] });
+      setError(null);
     } catch (error) {
       console.error('Failed to fetch graph data:', error);
       setRawData({ nodes: [], edges: [] });
+      setError('Unable to load graph data. Verify the API is running and the selected user has access.');
     } finally {
       setLoading(false);
     }
-  }, [entityName, sessionId]);
+  }, [entityName, sessionId, userId]);
 
   useEffect(() => {
     fetchGraph();
@@ -400,14 +404,14 @@ export function MemoryGraph({ entityName, sessionId }: MemoryGraphProps) {
     };
   }, [loading, rawData.nodes.length === 0, isDark]);
 
-  useEffect(() => {
-    if (graphRef.current && filteredGraphData) {
-      graphRef.current.graphData({
-        nodes: filteredGraphData.nodes.map((n) => ({ ...n })),
-        links: filteredGraphData.links.map((l) => ({ ...l })),
-      });
-    }
-  }, [filteredGraphData]);
+    useEffect(() => {
+        if (graphRef.current && filteredGraphData) {
+            graphRef.current.graphData({
+                nodes: filteredGraphData.nodes.map((n) => ({ ...n })),
+                links: filteredGraphData.links.map((l) => ({ ...l })),
+            });
+        }
+    }, [filteredGraphData]);
 
   const toggleType = (type: string) => {
     setVisibleTypes((prev) => ({ ...prev, [type]: !prev[type] }));
@@ -417,13 +421,13 @@ export function MemoryGraph({ entityName, sessionId }: MemoryGraphProps) {
     if (graphRef.current) graphRef.current.zoom(graphRef.current.zoom() * 1.3, 300);
   };
 
-  const handleZoomOut = () => {
-    if (graphRef.current) graphRef.current.zoom(graphRef.current.zoom() / 1.3, 300);
-  };
+    const handleZoomOut = () => {
+        if (graphRef.current) graphRef.current.zoom(graphRef.current.zoom() / 1.3, 300);
+    };
 
-  const handleFit = () => {
-    if (graphRef.current) graphRef.current.zoomToFit(400, 40);
-  };
+    const handleFit = () => {
+        if (graphRef.current) graphRef.current.zoomToFit(400, 40);
+    };
 
   if (loading) {
     return (
@@ -441,8 +445,8 @@ export function MemoryGraph({ entityName, sessionId }: MemoryGraphProps) {
     return (
       <EmptyState
         icon={Network}
-        title="No graph entities found"
-        description="The memory graph is currently empty. Ingest conversation sessions to see nodes, entities, and temporal facts appear."
+        title={error ? 'Graph unavailable' : 'No graph entities found'}
+        description={error || 'The memory graph is currently empty. Ingest conversation sessions to see nodes, entities, and temporal facts appear.'}
         action={{
           label: 'Refresh Graph',
           onClick: fetchGraph,
@@ -451,247 +455,242 @@ export function MemoryGraph({ entityName, sessionId }: MemoryGraphProps) {
     );
   }
 
-  return (
-    <div className="relative w-full h-full bg-slate-100 dark:bg-[#090d16] overflow-hidden select-none transition-colors duration-200">
-      {/* Interactive Force Graph Canvas */}
-      <div ref={containerRef} className="w-full h-full absolute inset-0" />
+    return (
+        <div className="relative w-full h-full bg-slate-100 dark:bg-[#090d16] overflow-hidden select-none transition-colors duration-200">
+            {/* Interactive Force Graph Canvas */}
+            <div ref={containerRef} className="w-full h-full absolute inset-0" />
 
-      {/* Floating Toolbar & Node Legend */}
-      <div className="absolute top-4 left-4 flex flex-col gap-3 z-10">
-        {/* Type toggle filters */}
-        <div className="glass-panel p-3.5 space-y-2.5 shadow-2xl rounded-2xl max-w-xs border border-slate-200 dark:border-white/[0.08]">
-          <div className="flex items-center justify-between gap-3 pb-1.5 border-b border-slate-200 dark:border-white/5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5 font-mono">
-              <Filter size={12} className="text-amber-500" /> Entity Filters
-            </span>
-            <span className="text-[10px] font-mono text-slate-500 font-bold">
-              {filteredGraphData.nodes.length} nodes
-            </span>
-          </div>
+            {/* Floating Toolbar & Node Legend */}
+            <div className="absolute top-4 left-4 flex flex-col gap-3 z-10">
+                {/* Type toggle filters */}
+                <div className="glass-panel p-3.5 space-y-2.5 shadow-2xl rounded-2xl max-w-xs border border-slate-200 dark:border-white/[0.08]">
+                    <div className="flex items-center justify-between gap-3 pb-1.5 border-b border-slate-200 dark:border-white/5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5 font-mono">
+                            <Filter size={12} className="text-amber-500" /> Entity Filters
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-500 font-bold">
+                            {filteredGraphData.nodes.length} nodes
+                        </span>
+                    </div>
 
-          <div className="flex flex-col gap-1">
-            {Object.entries(TYPE_CONFIG).map(([type, cfg]) => {
-              const active = visibleTypes[type] !== false;
-              return (
+                    <div className="flex flex-col gap-1">
+                        {Object.entries(TYPE_CONFIG).map(([type, cfg]) => {
+                            const active = visibleTypes[type] !== false;
+                            return (
+                                <button
+                                    key={type}
+                                    onClick={() => toggleType(type)}
+                                    className={`flex items-center justify-between gap-3 text-xs px-2.5 py-1.5 rounded-xl transition-all cursor-pointer ${active
+                                            ? 'bg-slate-200/60 dark:bg-white/[0.06] text-slate-900 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-white/[0.1]'
+                                            : 'opacity-40 text-slate-400 hover:opacity-70'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: cfg.color }} />
+                                        <span className="font-bold text-[11px]">{cfg.label}</span>
+                                    </div>
+                                    <Eye size={13} className={active ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'} />
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Temporal Edge Visual Guide */}
+                <div className="glass-panel p-3.5 space-y-2 shadow-2xl rounded-2xl max-w-xs border border-slate-200 dark:border-white/[0.08]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block pb-1 border-b border-slate-200 dark:border-white/5 font-mono">
+                        Temporal Edge Legend
+                    </span>
+                    <div className="text-[10px] text-slate-600 dark:text-slate-400 space-y-1.5 font-semibold">
+                        <div className="flex items-center gap-2">
+                            <span className="w-3.5 h-1.5 bg-rose-500 rounded-full shadow-sm" />
+                            <span className="text-rose-700 dark:text-rose-300 font-mono font-bold">SUPERSEDES (Update)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="w-3.5 h-1.5 bg-sky-500 rounded-full shadow-sm" />
+                            <span>MENTIONS (Entity Link)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="w-3.5 h-1.5 bg-indigo-500 rounded-full shadow-sm" />
+                            <span>CONTAINS (Session Turn)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Navigation Controls (Zoom & Fit) */}
+            <div className="absolute bottom-4 right-4 flex items-center gap-1.5 z-10 glass-panel p-1.5 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/[0.08]">
                 <button
-                  key={type}
-                  onClick={() => toggleType(type)}
-                  className={`flex items-center justify-between gap-3 text-xs px-2.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-                    active
-                      ? 'bg-slate-200/60 dark:bg-white/[0.06] text-slate-900 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-white/[0.1]'
-                      : 'opacity-40 text-slate-400 hover:opacity-70'
-                  }`}
+                    onClick={handleZoomIn}
+                    className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                    title="Zoom In"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: cfg.color }} />
-                    <span className="font-bold text-[11px]">{cfg.label}</span>
-                  </div>
-                  <Eye size={13} className={active ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'} />
+                    <ZoomIn size={16} />
                 </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Temporal Edge Visual Guide */}
-        <div className="glass-panel p-3.5 space-y-2 shadow-2xl rounded-2xl max-w-xs border border-slate-200 dark:border-white/[0.08]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block pb-1 border-b border-slate-200 dark:border-white/5 font-mono">
-            Temporal Edge Legend
-          </span>
-          <div className="text-[10px] text-slate-600 dark:text-slate-400 space-y-1.5 font-semibold">
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-1.5 bg-rose-500 rounded-full shadow-sm" />
-              <span className="text-rose-700 dark:text-rose-300 font-mono font-bold">SUPERSEDES (Update)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-1.5 bg-sky-500 rounded-full shadow-sm" />
-              <span>MENTIONS (Entity Link)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-1.5 bg-indigo-500 rounded-full shadow-sm" />
-              <span>CONTAINS (Session Turn)</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation Controls (Zoom & Fit) */}
-      <div className="absolute bottom-4 right-4 flex items-center gap-1.5 z-10 glass-panel p-1.5 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/[0.08]">
-        <button
-          onClick={handleZoomIn}
-          className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
-          title="Zoom In"
-        >
-          <ZoomIn size={16} />
-        </button>
-        <button
-          onClick={handleZoomOut}
-          className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
-          title="Zoom Out"
-        >
-          <ZoomOut size={16} />
-        </button>
-        <button
-          onClick={handleFit}
-          className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
-          title="Fit to Screen"
-        >
-          <Maximize2 size={16} />
-        </button>
-      </div>
-
-      {/* Selected Node Details & Chronological Fact Timeline Drawer */}
-      {selectedNode && (
-        <div className="absolute top-4 right-4 w-96 max-w-[calc(100vw-32px)] glass-panel p-5 z-20 rounded-3xl shadow-2xl border border-slate-200 dark:border-white/[0.12] animate-slide-in-right flex flex-col max-h-[calc(100vh-32px)] overflow-hidden">
-          {/* Drawer Header */}
-          <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-200 dark:border-white/10 flex-shrink-0">
-            <div>
-              <div className="flex items-center gap-2">
-                <span
-                  className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-lg font-mono"
-                  style={{
-                    backgroundColor: `${selectedNode.color || '#38bdf8'}25`,
-                    color: selectedNode.color || '#38bdf8',
-                  }}
+                <button
+                    onClick={handleZoomOut}
+                    className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                    title="Zoom Out"
                 >
-                  {selectedNode.type} Node
-                </span>
-                {selectedNode.data?.is_current !== undefined && (
-                  <span
-                    className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-lg font-mono flex items-center gap-1 ${
-                      selectedNode.data.is_current
-                        ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30'
-                        : 'bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/30'
-                    }`}
-                  >
-                    {selectedNode.data.is_current ? (
-                      <>
-                        <CheckCircle2 size={11} /> Active
-                      </>
-                    ) : (
-                      <>
-                        <AlertTriangle size={11} /> Superseded
-                      </>
-                    )}
-                  </span>
-                )}
-              </div>
-              <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-2 leading-snug break-words font-heading">
-                {selectedNode.label}
-              </h4>
-            </div>
-            <button
-              onClick={() => setSelectedNode(null)}
-              className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          {/* Drawer Scrollable Content */}
-          <div className="flex-1 overflow-y-auto py-3.5 space-y-4 text-xs text-slate-700 dark:text-slate-300 pr-1">
-            {/* Fact Content */}
-            {selectedNode.data?.content && (
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 font-mono">
-                  <Layers size={12} /> Knowledge Unit
-                </span>
-                <p className="p-3.5 rounded-2xl bg-white dark:bg-black/40 border border-slate-200 dark:border-white/5 leading-relaxed text-slate-900 dark:text-slate-200 font-medium text-xs shadow-sm">
-                  {selectedNode.data.content}
-                </p>
-              </div>
-            )}
-
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-2 gap-2.5">
-              {selectedNode.data?.confidence !== undefined && (
-                <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] shadow-sm">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5 font-mono">Confidence</span>
-                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400 text-sm">
-                    {Math.round(selectedNode.data.confidence * 100)}%
-                  </span>
-                </div>
-              )}
-
-              {selectedNode.data?.session_id && (
-                <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] shadow-sm">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5 font-mono">Source Session</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs truncate block">
-                    {selectedNode.data.session_id}
-                  </span>
-                </div>
-              )}
+                    <ZoomOut size={16} />
+                </button>
+                <button
+                    onClick={handleFit}
+                    className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                    title="Fit to Screen"
+                >
+                    <Maximize2 size={16} />
+                </button>
             </div>
 
-            {/* Chronological Supersedence Timeline Stepper */}
-            {timelineChain.length > 0 && (
-              <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-white/10">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5 font-heading">
-                    <History size={14} />
-                    Fact Evolution Timeline ({timelineChain.length})
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-500 font-bold">HydraDB Lineage</span>
-                </div>
+            {/* Selected Node Details & Chronological Fact Timeline Drawer */}
+            {selectedNode && (
+                <div className="absolute top-4 right-4 w-96 max-w-[calc(100vw-32px)] glass-panel p-5 z-20 rounded-3xl shadow-2xl border border-slate-200 dark:border-white/[0.12] animate-slide-in-right flex flex-col max-h-[calc(100vh-32px)] overflow-hidden">
+                    {/* Drawer Header */}
+                    <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-200 dark:border-white/10 flex-shrink-0">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span
+                                    className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-lg font-mono"
+                                    style={{
+                                        backgroundColor: `${selectedNode.color || '#38bdf8'}25`,
+                                        color: selectedNode.color || '#38bdf8',
+                                    }}
+                                >
+                                    {selectedNode.type} Node
+                                </span>
+                                {selectedNode.data?.is_current !== undefined && (
+                                    <span
+                                        className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-lg font-mono flex items-center gap-1 ${selectedNode.data.is_current
+                                                ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30'
+                                                : 'bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/30'
+                                            }`}
+                                    >
+                                        {selectedNode.data.is_current ? (
+                                            <>
+                                                <CheckCircle2 size={11} /> Active
+                                            </>
+                                        ) : (
+                                            <>
+                                                <AlertTriangle size={11} /> Superseded
+                                            </>
+                                        )}
+                                    </span>
+                                )}
+                            </div>
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-2 leading-snug break-words font-heading">
+                                {selectedNode.label}
+                            </h4>
+                        </div>
+                        <button
+                            onClick={() => setSelectedNode(null)}
+                            className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
 
-                <div className="space-y-3 relative pl-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-gradient-to-b before:from-rose-500 before:via-amber-500 before:to-emerald-500">
-                  {timelineChain.map((step, idx) => {
-                    const isStepSelected = String(selectedNode.id) === step.nodeId;
-                    return (
-                      <div
-                        key={step.nodeId}
-                        className={`relative p-3.5 rounded-2xl border text-xs space-y-2 transition-all ${
-                          isStepSelected
-                            ? 'bg-amber-500/15 border-amber-500/40 ring-1 ring-amber-500/30 shadow-md'
-                            : 'bg-white/80 dark:bg-slate-900/70 border-slate-200 dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-white/[0.15] shadow-sm'
-                        }`}
-                      >
-                        {/* Timeline Step Dot */}
-                        <div
-                          className={`absolute -left-[19px] top-4 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#090d16] ${
-                            step.isCurrent ? 'bg-emerald-500 shadow-md shadow-emerald-500/50' : 'bg-rose-500'
-                          }`}
-                        />
+                    {/* Drawer Scrollable Content */}
+                    <div className="flex-1 overflow-y-auto py-3.5 space-y-4 text-xs text-slate-700 dark:text-slate-300 pr-1">
+                        {/* Fact Content */}
+                        {selectedNode.data?.content && (
+                            <div className="space-y-1.5">
+                                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 font-mono">
+                                    <Layers size={12} /> Knowledge Unit
+                                </span>
+                                <p className="p-3.5 rounded-2xl bg-white dark:bg-black/40 border border-slate-200 dark:border-white/5 leading-relaxed text-slate-900 dark:text-slate-200 font-medium text-xs shadow-sm">
+                                    {selectedNode.data.content}
+                                </p>
+                            </div>
+                        )}
 
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-black/40 text-slate-700 dark:text-slate-300 font-mono">
-                            Step {idx + 1} • {step.sessionId}
-                          </span>
-                          <span
-                            className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
-                              step.isCurrent
-                                ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30'
-                                : 'bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/30'
-                            }`}
-                          >
-                            {step.isCurrent ? 'ACTIVE' : 'SUPERSEDED'}
-                          </span>
+                        {/* Quick Metrics Bar */}
+                        <div className="grid grid-cols-2 gap-2.5">
+                            {selectedNode.data?.confidence !== undefined && (
+                                <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] shadow-sm">
+                                    <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5 font-mono">Confidence</span>
+                                    <span className="font-mono font-bold text-amber-600 dark:text-amber-400 text-sm">
+                                        {Math.round(selectedNode.data.confidence * 100)}%
+                                    </span>
+                                </div>
+                            )}
+
+                            {selectedNode.data?.session_id && (
+                                <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] shadow-sm">
+                                    <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5 font-mono">Source Session</span>
+                                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs truncate block">
+                                        {selectedNode.data.session_id}
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
-                        <p className={`text-slate-900 dark:text-slate-100 font-medium ${!step.isCurrent ? 'line-through opacity-75 text-rose-900 dark:text-rose-200' : ''}`}>
-                          {step.content}
-                        </p>
+                        {/* Chronological Supersedence Timeline Stepper */}
+                        {timelineChain.length > 0 && (
+                            <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-white/10">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5 font-heading">
+                                        <History size={14} />
+                                        Fact Evolution Timeline ({timelineChain.length})
+                                    </span>
+                                    <span className="text-[10px] font-mono text-slate-500 font-bold">HydraDB Lineage</span>
+                                </div>
 
-                        <div className="flex items-center justify-between pt-1.5 border-t border-slate-200 dark:border-white/[0.04]">
-                          <span className="text-[10px] font-mono text-slate-500">
-                            {new Date(step.createdAt).toLocaleDateString()}
-                          </span>
-                          <button
-                            onClick={() => focusNodeOnCanvas(step.nodeId)}
-                            className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 transition-colors cursor-pointer"
-                          >
-                            <Target size={12} /> Focus Node
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                                <div className="space-y-3 relative pl-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-gradient-to-b before:from-rose-500 before:via-amber-500 before:to-emerald-500">
+                                    {timelineChain.map((step, idx) => {
+                                        const isStepSelected = String(selectedNode.id) === step.nodeId;
+                                        return (
+                                            <div
+                                                key={step.nodeId}
+                                                className={`relative p-3.5 rounded-2xl border text-xs space-y-2 transition-all ${isStepSelected
+                                                        ? 'bg-amber-500/15 border-amber-500/40 ring-1 ring-amber-500/30 shadow-md'
+                                                        : 'bg-white/80 dark:bg-slate-900/70 border-slate-200 dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-white/[0.15] shadow-sm'
+                                                    }`}
+                                            >
+                                                {/* Timeline Step Dot */}
+                                                <div
+                                                    className={`absolute -left-[19px] top-4 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#090d16] ${step.isCurrent ? 'bg-emerald-500 shadow-md shadow-emerald-500/50' : 'bg-rose-500'
+                                                        }`}
+                                                />
+
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-black/40 text-slate-700 dark:text-slate-300 font-mono">
+                                                        Step {idx + 1} • {step.sessionId}
+                                                    </span>
+                                                    <span
+                                                        className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${step.isCurrent
+                                                                ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30'
+                                                                : 'bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/30'
+                                                            }`}
+                                                    >
+                                                        {step.isCurrent ? 'ACTIVE' : 'SUPERSEDED'}
+                                                    </span>
+                                                </div>
+
+                                                <p className={`text-slate-900 dark:text-slate-100 font-medium ${!step.isCurrent ? 'line-through opacity-75 text-rose-900 dark:text-rose-200' : ''}`}>
+                                                    {step.content}
+                                                </p>
+
+                                                <div className="flex items-center justify-between pt-1.5 border-t border-slate-200 dark:border-white/[0.04]">
+                                                    <span className="text-[10px] font-mono text-slate-500">
+                                                        {new Date(step.createdAt).toLocaleDateString()}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => focusNodeOnCanvas(step.nodeId)}
+                                                        className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 transition-colors cursor-pointer"
+                                                    >
+                                                        <Target size={12} /> Focus Node
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
-              </div>
             )}
-          </div>
         </div>
-      )}
-    </div>
-  );
+    );
 }

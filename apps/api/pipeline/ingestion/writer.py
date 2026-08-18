@@ -11,10 +11,7 @@ from db.hydra import HydraDB
 
 
 def generate_int_id(unique_string: str) -> int:
-    """Generate a deterministic integer ID from a string.
-
-    Uses SHA-256 hash and takes first 8 bytes as integer.
-    """
+    """Generate a deterministic integer ID from a string."""
     hash_bytes = hashlib.sha256(unique_string.encode()).digest()[:8]
     return int.from_bytes(hash_bytes, byteorder="big") % (10**9)
 
@@ -27,19 +24,7 @@ def write_to_hydradb(
     supersessions: list[dict[str, str]],
     invalidations: list[dict[str, str]],
 ) -> dict[str, Any]:
-    """Write all data to HydraDB.
-
-    Args:
-        hydra: HydraDB connection (must be connected)
-        session: Session dict with session_id, user_id, started_at, messages
-        summary: Summary dict from summarizer (or None)
-        facts: List of resolved facts from extractor
-        supersessions: List of supersession info from supersession detector
-        invalidations: List of invalidation info from invalidator
-
-    Returns:
-        Write summary dict with counts of nodes/edges created
-    """
+    """Write all data to HydraDB."""
     session_id = session.get("session_id", "unknown")
     user_id = session.get("user_id", "unknown")
     started_at = session.get("started_at", datetime.now(timezone.utc).isoformat())
@@ -50,28 +35,34 @@ def write_to_hydradb(
     facts_written = 0
 
     # Build entity deduplication map
-    entity_map: dict[str, int] = {}  # entity_name -> entity_id
+    entity_map: dict[str, int] = {}
 
-    # Extract unique entities from facts
     for fact in facts:
         entity_name = fact.get("entity_name", "")
         if entity_name and entity_name not in entity_map:
-            entity_id = generate_int_id(f"entity:{entity_name}")
+            entity_id = generate_int_id(f"entity:{user_id}:{entity_name}")
             entity_map[entity_name] = entity_id
+
+    superseding_fact_ids = {str(sup.get("new_fact_id", "")) for sup in supersessions}
+    facts_by_id = {str(fact.get("fact_id", "")): fact for fact in facts}
+
+    user_cell_id = getattr(hydra, "get_user_cell_id", lambda u: "cell-0")(user_id) if hasattr(hydra, "get_user_cell_id") else "cell-0"
+    if hasattr(hydra, "ensure_cell_exists"):
+        hydra.ensure_cell_exists(user_cell_id)
 
     with hydra._driver.session() as db_session:
         # 1. Create Session node
         session_int_id = generate_int_id(f"session:{session_id}")
         anchor_id = session_int_id + 1000000
         db_session.run(
-            "MERGE (s:Session {id: $session_int_id, session_id: $session_id, user_id: $user_id, started_at: $started_at, status: 'active'})-[:SESSION_ANCHOR]->(:SessionAnchor {id: $anchor_id})",
+            "MERGE (s:Session {id: $session_int_id, session_id: $session_id, user_id: $user_id, started_at: $started_at, status: 'active'})-[:SESSION_ANCHOR]->(sa:SessionAnchor {id: $anchor_id})",
             session_int_id=session_int_id,
             session_id=session_id,
             user_id=user_id,
             started_at=started_at,
             anchor_id=anchor_id,
         )
-        nodes_created += 2  # Session + Anchor
+        nodes_created += 2
 
         # 2. Create Message nodes + CONTAINS edges
         for i, msg in enumerate(messages):
@@ -82,24 +73,22 @@ def write_to_hydradb(
             content = msg.get("content", "")
             created_at = msg.get("created_at", started_at)
 
-            # Create message with anchor (single hop)
             db_session.run(
-                "MERGE (m:Message {id: $msg_int_id, role: $role, content: $content, created_at: $created_at})-[:MESSAGE_ANCHOR]->(:MessageAnchor {id: $msg_anchor_id})",
+                "MERGE (m:Message {id: $msg_int_id, role: $role, content: $content, created_at: $created_at})-[:MESSAGE_ANCHOR]->(ma:MessageAnchor {id: $msg_anchor_id})",
                 msg_int_id=msg_int_id,
                 role=role,
                 content=content,
                 created_at=created_at,
                 msg_anchor_id=msg_anchor_id,
             )
-            nodes_created += 2  # Message + Anchor
+            nodes_created += 2
 
-            # Create CONTAINS edge (separate query)
             db_session.run(
                 "MERGE (s:Session {id: $session_int_id})-[:CONTAINS]->(m:Message {id: $msg_int_id})",
                 session_int_id=session_int_id,
                 msg_int_id=msg_int_id,
             )
-            edges_created += 1  # CONTAINS
+            edges_created += 1
 
         # 3. Create Summary node + HAS_SUMMARY edge
         if summary:
@@ -109,43 +98,43 @@ def write_to_hydradb(
             summary_content = summary.get("content", "")
             generated_at = summary.get("generated_at", started_at)
 
-            # Create summary with anchor (single hop)
             db_session.run(
-                "MERGE (sum:Summary {id: $summary_int_id, content: $content, created_at: $created_at})-[:SUMMARY_ANCHOR]->(:SummaryAnchor {id: $anchor_id})",
+                "MERGE (sum:Summary {id: $summary_int_id, content: $content, created_at: $created_at})-[:SUMMARY_ANCHOR]->(sma:SummaryAnchor {id: $anchor_id})",
                 summary_int_id=summary_int_id,
                 content=summary_content,
                 created_at=generated_at,
                 anchor_id=summary_anchor_id,
             )
-            nodes_created += 2  # Summary + Anchor
+            nodes_created += 2
 
-            # Create HAS_SUMMARY edge (separate query)
             db_session.run(
                 "MERGE (s:Session {id: $session_int_id})-[:HAS_SUMMARY]->(sum:Summary {id: $summary_int_id})",
                 session_int_id=session_int_id,
                 summary_int_id=summary_int_id,
             )
-            edges_created += 1  # HAS_SUMMARY
+            edges_created += 1
 
         # 4. Create Entity nodes
         for entity_name, entity_id in entity_map.items():
-            entity_type = "person"  # Default, could be enhanced
+            entity_type = "person"
             entity_anchor_id = entity_id + 1000000
 
             db_session.run(
-                "MERGE (e:Entity {id: $entity_id, name: $name, type: $type})-[:ENTITY_ANCHOR]->(:EntityAnchor {id: $anchor_id})",
+                "MERGE (e:Entity {id: $entity_id, user_id: $user_id, name: $name, type: $type})-[:ENTITY_ANCHOR]->(ea:EntityAnchor {id: $anchor_id})",
                 entity_id=entity_id,
+                user_id=user_id,
                 name=entity_name,
                 type=entity_type,
                 anchor_id=entity_anchor_id,
             )
-            nodes_created += 2  # Entity + Anchor
+            nodes_created += 2
 
         # 5. Create Fact nodes + MENTIONS + OCCURRED_IN edges
         for fact in facts:
             fact_id = fact.get("fact_id", "unknown")
+            if str(fact_id) in superseding_fact_ids:
+                continue
             fact_int_id = generate_int_id(f"fact:{fact_id}")
-            fact_anchor_id = fact_int_id + 1000000
             content = fact.get("content", "")
             confidence = fact.get("confidence", 0.5)
             entity_name = fact.get("entity_name", "")
@@ -155,58 +144,86 @@ def write_to_hydradb(
             if not entity_id:
                 continue
 
-            # Create fact linked to entity via MENTIONS
-            # Ensure entity has its name property set
+            # ✅ SET without RETURN — HydraDB compatible
             db_session.run(
-                "MATCH (e:Entity {id: $entity_id}) SET e.name = $entity_name RETURN e",
+                "MATCH (e:Entity {id: $entity_id}) SET e.name = $entity_name",
                 entity_id=entity_id,
                 entity_name=entity_name,
             )
 
             db_session.run(
-                "MERGE (f:Fact {id: $fact_int_id, content: $content, confidence: $confidence, is_current: true, created_at: $created_at})-[:MENTIONS]->(e:Entity {id: $entity_id, name: $entity_name})",
+                "MERGE (f:Fact {id: $fact_int_id, content: $content, confidence: $confidence, is_current: true, created_at: $created_at})-[:MENTIONS]->(e:Entity {id: $entity_id, user_id: $user_id, name: $entity_name})",
                 fact_int_id=fact_int_id,
                 content=content,
                 confidence=confidence,
                 created_at=created_at,
                 entity_id=entity_id,
+                user_id=user_id,
                 entity_name=entity_name,
             )
-            nodes_created += 1  # Fact (entity already exists)
-            edges_created += 1  # MENTIONS
+            nodes_created += 1
+            edges_created += 1
             facts_written += 1
 
-            # Create OCCURRED_IN edge (fact -> session)
-            # HydraDB requires MERGE with relationship, so we create a new pattern
             db_session.run(
                 "MERGE (f:Fact {id: $fact_int_id})-[:OCCURRED_IN]->(s:Session {id: $session_int_id})",
                 fact_int_id=fact_int_id,
                 session_int_id=session_int_id,
             )
-            edges_created += 1  # OCCURRED_IN
+            edges_created += 1
 
         # 6. Create SUPERSEDES edges
         for sup in supersessions:
             new_fact_id = sup.get("new_fact_id", "")
             old_fact_id = sup.get("supersedes_fact_id", "")
+            new_fact = facts_by_id.get(str(new_fact_id))
+            if not new_fact:
+                raise ValueError(f"Superseding fact {new_fact_id!r} was not found in the ingestion payload")
 
             new_fact_int_id = generate_int_id(f"fact:{new_fact_id}")
-            old_fact_int_id = generate_int_id(f"fact:{old_fact_id}")
+            old_fact_int_id = old_fact_id
+            entity_name = new_fact.get("entity_name", "")
+            entity_id = entity_map.get(entity_name)
+            if not entity_id:
+                raise ValueError(f"Superseding fact {new_fact_id!r} has no entity")
 
-            # Create SUPERSEDES relationship
-            db_session.run(
-                "MERGE (f_new:Fact {id: $new_id})-[:SUPERSEDES]->(f_old:Fact {id: $old_id})",
-                new_id=new_fact_int_id,
-                old_id=old_fact_int_id,
-            )
-            edges_created += 1
+            with db_session.begin_transaction() as transaction:
+                transaction.run(
+                    "MERGE (f:Fact {id: $fact_int_id, content: $content, confidence: $confidence, is_current: true, created_at: $created_at})-[:MENTIONS]->(e:Entity {id: $entity_id, user_id: $user_id, name: $entity_name})",
+                    fact_int_id=new_fact_int_id,
+                    content=new_fact.get("content", ""),
+                    confidence=new_fact.get("confidence", 0.5),
+                    created_at=new_fact.get("created_at", started_at),
+                    entity_id=entity_id,
+                    user_id=user_id,
+                    entity_name=entity_name,
+                )
+                transaction.run(
+                    "MERGE (f:Fact {id: $fact_int_id})-[:OCCURRED_IN]->(s:Session {id: $session_int_id})",
+                    fact_int_id=new_fact_int_id,
+                    session_int_id=session_int_id,
+                )
+                # ✅ Simple MATCH then SET — no relationship pattern before write
+                transaction.run(
+                    "MATCH (f:Fact {id: $old_id}) SET f.is_current = false",
+                    old_id=old_fact_int_id,
+                )
+                transaction.run(
+                    "MATCH (f_new:Fact {id: $new_id}), (f_old:Fact {id: $old_id}) "
+                    "MERGE (f_new)-[:SUPERSEDES]->(f_old)",
+                    new_id=new_fact_int_id,
+                    old_id=old_fact_int_id,
+                )
 
-        # 7. Create INVALIDATED_BY edges
+            nodes_created += 1
+            facts_written += 1
+            edges_created += 3
+
+        # 7. Invalidate stale facts
         for inv in invalidations:
             fact_id = inv.get("fact_id", "")
             reason = inv.get("reason", "expired")
 
-            # fact_id might already be an int from invalidator
             if isinstance(fact_id, int):
                 fact_int_id = fact_id
             elif isinstance(fact_id, str) and fact_id.isdigit():
@@ -214,17 +231,25 @@ def write_to_hydradb(
             else:
                 fact_int_id = generate_int_id(f"fact:{fact_id}")
 
-            # Create INVALIDATED_BY relationship
-            db_session.run(
-                "MERGE (f:Fact {id: $fact_int_id})-[:INVALIDATED_BY {reason: $reason}]->(s:Session {id: $session_int_id})",
-                fact_int_id=fact_int_id,
-                reason=reason,
-                session_int_id=session_int_id,
-            )
+            with db_session.begin_transaction() as transaction:
+                # ✅ Simple MATCH by id only — no relationship pattern before SET
+                transaction.run(
+                    "MATCH (f:Fact {id: $fact_int_id}) SET f.is_current = false",
+                    fact_int_id=fact_int_id,
+                )
+                transaction.run(
+                    "MATCH (f:Fact {id: $fact_int_id}), (s:Session {id: $session_int_id}) "
+                    "MERGE (f)-[:INVALIDATED_BY {reason: $reason}]->(s)",
+                    fact_int_id=fact_int_id,
+                    reason=reason,
+                    session_int_id=session_int_id,
+                )
             edges_created += 1
 
     return {
         "session_id": session_id,
+        "user_id": user_id,
+        "cell_id": user_cell_id,
         "nodes_created": nodes_created,
         "edges_created": edges_created,
         "facts_written": facts_written,
@@ -244,7 +269,6 @@ def main():
     from pipeline.ingestion.extractor import extract_facts
     from pipeline.ingestion.summarizer import summarize_session
 
-    # Load .env file
     env_path = Path(__file__).parent.parent.parent.parent.parent / ".env"
     load_dotenv(env_path)
 
@@ -261,12 +285,10 @@ def main():
     print("=" * 50)
 
     try:
-        # Clean up first
         with hydra._driver.session() as session:
             session.run("MATCH (n) DELETE n")
         print("Cleared database")
 
-        # Sample session
         sample_session = {
             "session_id": "session-001",
             "user_id": "alex-user",
@@ -307,7 +329,6 @@ def main():
 
         print("\nStep 4: Verifying data in HydraDB...")
         with hydra._driver.session() as session:
-            # Get facts
             result = session.run("MATCH (f:Fact) RETURN f.content")
             print("  Facts:")
             fact_count = 0
@@ -316,13 +337,11 @@ def main():
                 fact_count += 1
             print(f"  Total facts: {fact_count}")
 
-            # Get summary
             result = session.run("MATCH (s:Summary) RETURN s.content")
             record = result.single()
             if record:
                 print(f"  Summary: {record['s.content'][:60]}...")
 
-            # Get session
             result = session.run("MATCH (s:Session) RETURN s.session_id, s.user_id")
             record = result.single()
             if record:

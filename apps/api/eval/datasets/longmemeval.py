@@ -61,15 +61,40 @@ class LongMemEvalDataset:
         self.data = []
         for item in raw_data:
             q_id = item.get("id") or item.get("question_id", "")
+
+            # Convert haystack_sessions (list of lists of turns) to expected format
+            haystack_sessions = item.get("haystack_sessions", [])
+            sessions = []
+            session_dates = item.get("haystack_dates", [])
+            session_ids = item.get("haystack_session_ids", [])
+
+            for i, session_turns in enumerate(haystack_sessions):
+                if isinstance(session_turns, list):
+                    # Convert list of turns to messages format
+                    messages = []
+                    for turn in session_turns:
+                        if isinstance(turn, dict) and "role" in turn and "content" in turn:
+                            messages.append({
+                                "role": turn["role"],
+                                "content": turn["content"]
+                            })
+                    if messages:
+                        sessions.append({
+                            "session_id": session_ids[i] if i < len(session_ids) else f"session_{i}",
+                            "user_id": "longmemeval_user",  # Default user_id for benchmark
+                            "started_at": session_dates[i] if i < len(session_dates) else "",
+                            "messages": messages
+                        })
+
             example = {
                 "question_id": q_id,
                 "question_type": item.get("question_type", "general"),
                 "question": item.get("question", ""),
                 "answer": item.get("answer", ""),
                 "question_date": item.get("question_date", ""),
-                "sessions": item.get("sessions", item.get("haystack_sessions", [])),
-                "session_dates": item.get("haystack_dates", item.get("session_dates", [])),
-                "session_ids": item.get("haystack_session_ids", item.get("session_ids", [])),
+                "sessions": sessions,
+                "session_dates": session_dates,
+                "session_ids": session_ids,
                 "answer_session_ids": item.get("answer_session_ids", []),
                 "is_abstention": str(q_id).endswith("_abs") or item.get("is_abstention", False),
             }

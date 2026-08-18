@@ -5,6 +5,7 @@ import {
   QueryResponse,
   CompareResponse,
   AbstentionInspectionResponse,
+  MultiEntityResponse,
   Entity,
   GraphData,
   DatasetInfo,
@@ -63,30 +64,13 @@ class MemoryGraphAPI {
   }
 
   async getHealth(): Promise<HealthStatus> {
-    try {
-      const response = await this.withRetry(() => this.client.get('/health'));
-      return response.data;
-    } catch {
-      return { status: 'unhealthy' };
-    }
+    const response = await this.withRetry(() => this.client.get('/health'));
+    return response.data;
   }
 
   async getMetrics(): Promise<Metrics> {
-    try {
-      const response = await this.withRetry(() => this.client.get('/metrics'));
-      return response.data;
-    } catch {
-      return {
-        total_facts_stored: 0,
-        sessions_ingested: 0,
-        entities_tracked: 0,
-        avg_query_latency_ms: 0,
-        total_queries: 0,
-        total_ingestions: 0,
-        total_groq_tokens_used: 0,
-        abstention_rate: 0,
-      };
-    }
+    const response = await this.withRetry(() => this.client.get('/metrics'));
+    return response.data;
   }
 
   async queryMemory(question: string, userId: string = 'user'): Promise<QueryResponse> {
@@ -110,50 +94,43 @@ class MemoryGraphAPI {
     return response.data;
   }
 
-
-
-  async getSessionGraph(sessionId: string): Promise<GraphData> {
-    try {
-      const response = await this.withRetry(() =>
-        this.client.get(`/graph/session/${sessionId}`)
-      );
-      return response.data;
-    } catch {
-      return { nodes: [], edges: [] };
-    }
+  async getMultiEntityPaths(userId: string, entities: string[]): Promise<MultiEntityResponse> {
+    const response = await this.withRetry(() =>
+      this.client.get(`/memory/${encodeURIComponent(userId)}/multi-entity`, {
+        params: { entities: entities.join(',') },
+      })
+    );
+    return response.data;
   }
 
-  async getEntityGraph(entityName: string): Promise<GraphData> {
-    try {
-      const response = await this.withRetry(() =>
-        this.client.get(`/graph/entity/${entityName}`)
-      );
-      return response.data;
-    } catch {
-      return { nodes: [], edges: [] };
-    }
+
+
+  async getSessionGraph(sessionId: string, userId: string): Promise<GraphData> {
+    const response = await this.withRetry(() =>
+      this.client.get(`/graph/session/${encodeURIComponent(sessionId)}`, { params: { user_id: userId } })
+    );
+    return response.data;
   }
 
-  async getAllGraphs(): Promise<GraphData> {
-    try {
-      const response = await this.withRetry(() =>
-        this.client.get('/graph/all')
-      );
-      return response.data;
-    } catch {
-      return { nodes: [], edges: [] };
-    }
+  async getEntityGraph(entityName: string, userId: string): Promise<GraphData> {
+    const response = await this.withRetry(() =>
+      this.client.get(`/graph/entity/${encodeURIComponent(entityName)}`, { params: { user_id: userId } })
+    );
+    return response.data;
   }
 
-  async getRecentSessions(limit: number = 50): Promise<SessionItem[]> {
-    try {
-      const response = await this.withRetry(() =>
-        this.client.get('/graph/sessions', { params: { limit } })
-      );
-      return response.data || [];
-    } catch {
-      return [];
-    }
+  async getAllGraphs(userId: string): Promise<GraphData> {
+    const response = await this.withRetry(() =>
+      this.client.get('/graph/all', { params: { user_id: userId } })
+    );
+    return response.data;
+  }
+
+  async getRecentSessions(userId: string, limit: number = 50): Promise<SessionItem[]> {
+    const response = await this.withRetry(() =>
+      this.client.get('/graph/sessions', { params: { user_id: userId, limit } })
+    );
+    return response.data || [];
   }
 
   async ingestSession(session: {

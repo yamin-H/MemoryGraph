@@ -19,13 +19,16 @@ from config import settings
 from db.hydra import HydraDB
 from middleware.rate_limiter import RateLimiterMiddleware
 from middleware.cost_tracker import CostTrackerMiddleware
-from routes import ingest, query, graph, health, metrics, benchmark, compare
+from routes import ingest, query, graph, health, metrics, benchmark, compare, memory
 
 
 # Load environment
-env_path = Path(__file__).parent.parent.parent.parent / ".env"
+env_path = Path(__file__).resolve().parent.parent.parent / ".env"
 load_dotenv(env_path)
-
+load_dotenv(env_path)
+print(f"[DEBUG] Loading .env from: {env_path}")
+print(f"[DEBUG] .env exists: {env_path.exists()}")
+print(f"[DEBUG] GROQ_API_KEY loaded: {bool(os.environ.get('GROQ_API_KEY'))}")
 # Global connections
 hydra_client: HydraDB | None = None
 redis_client: redis.Redis | None = None
@@ -71,6 +74,7 @@ async def lifespan(app: FastAPI):
 
     try:
         hydra_client.connect()
+        app.state.hydra = hydra_client
         print(f"[OK] Connected to HydraDB at {hydra_uri}")
         admin = hydra_client.health_details().get("admin", {})
         if admin.get("ready"):
@@ -118,7 +122,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for now
+    allow_origins=["http://localhost:3000"],  # ✅ explicit origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -139,6 +143,7 @@ app.include_router(graph.router, prefix="/graph", tags=["Graph"])
 app.include_router(health.router, tags=["Health"])
 app.include_router(metrics.router, tags=["Metrics"])
 app.include_router(benchmark.router, prefix="/benchmark", tags=["Benchmark"])
+app.include_router(memory.router, prefix="/memory", tags=["Memory"])
 
 
 # Exception handler

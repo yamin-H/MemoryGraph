@@ -30,7 +30,7 @@ class MemoryGraphSystem:
 
     def query(self, question: str, user_id: str) -> dict[str, Any]:
         """Query MemoryGraph."""
-        result = run_retrieval(question)
+        result = run_retrieval(question, user_id=user_id)
         return {
             "answer": result.get("answer", {}).get("answer", ""),
             "confidence": result.get("answer", {}).get("confidence", 0.0),
@@ -40,9 +40,20 @@ class MemoryGraphSystem:
         }
 
     def clear(self) -> None:
-        """Clear database - would need HydraDB connection."""
-        # Note: In real benchmark, we'd clear the database
-        pass
+        """Clear HydraDB between examples for clean evaluation."""
+        from apps.api.db.hydra import HydraDB
+        hydra = HydraDB()
+        try:
+            hydra.connect()
+            hydra.clear_all()
+        except Exception:
+            pass  # Best effort; ignore failures in benchmark
+        finally:
+            hydra.close()
+
+    def close(self) -> None:
+        """Close any connections."""
+        pass  # HydraDB connections are per-call, nothing persistent
 
 
 SYSTEMS = {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { api } from '@/lib/api';
 import { AbstentionInspectionResponse } from '@/lib/types';
 import {
@@ -17,25 +17,9 @@ import {
 } from 'lucide-react';
 import { CodeViewer } from '@/components/CodeViewer';
 
-interface Preset {
-  id: string;
-  label: string;
-  emoji: string;
-  question: string;
-  isTrick: boolean;
-}
-
-const PRESETS: Preset[] = [
-  { id: 'dog', label: 'Unseen Pet (Dog)', emoji: '🐶', question: "What is the name of Alex's pet dog?", isTrick: true },
-  { id: 'university', label: 'Unrecorded College', emoji: '🎓', question: 'Which university did Alex graduate from?', isTrick: true },
-  { id: 'car', label: 'Unrecorded Vehicle', emoji: '🚗', question: 'What brand of car does Alex drive to work?', isTrick: true },
-  { id: 'salary', label: 'Unrecorded Salary', emoji: '💰', question: "What was Alex's salary in 2022?", isTrick: true },
-  { id: 'cat', label: 'Known Fact (Cat)', emoji: '🐱', question: "What is the name of Alex's pet cat?", isTrick: false },
-];
-
 export default function AbstentionPage() {
-  const [selectedPreset, setSelectedPreset] = useState<Preset>(PRESETS[0]);
-  const [question, setQuestion] = useState(PRESETS[0].question);
+  const [question, setQuestion] = useState('');
+  const [userId, setUserId] = useState('user');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<AbstentionInspectionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +29,7 @@ export default function AbstentionPage() {
     setLoading(true);
     setError(null);
     try {
-      const resp = await api.inspectAbstention(queryText, 'alex-user');
+      const resp = await api.inspectAbstention(queryText, userId.trim() || 'user');
       setData(resp);
     } catch (err: any) {
       console.error('Abstention error:', err);
@@ -53,15 +37,6 @@ export default function AbstentionPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    runInspection(selectedPreset.question);
-  }, [selectedPreset]);
-
-  const handleSelectPreset = (p: Preset) => {
-    setSelectedPreset(p);
-    setQuestion(p.question);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -87,34 +62,6 @@ export default function AbstentionPage() {
         </p>
       </div>
 
-      {/* Preset Pills */}
-      <div className="animate-fade-in-up stagger-4 flex flex-wrap items-center justify-center gap-2.5">
-        {PRESETS.map((p) => {
-          const isSelected = selectedPreset.id === p.id;
-          return (
-            <button
-              key={p.id}
-              onClick={() => handleSelectPreset(p)}
-              className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-300 flex items-center gap-2.5 border cursor-pointer ${
-                isSelected
-                  ? 'bg-blue-500/15 border-blue-500/40 text-blue-800 dark:text-blue-200 shadow-md ring-1 ring-blue-500/30'
-                  : 'bg-white/80 dark:bg-white/[0.03] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
-              }`}
-            >
-              <span className="text-sm">{p.emoji}</span>
-              <span>{p.label}</span>
-              <span className={`text-[9px] px-2 py-0.5 rounded-md font-mono font-extrabold ${
-                p.isTrick
-                  ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/25'
-                  : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25'
-              }`}>
-                {p.isTrick ? 'TRICK' : 'FACT'}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
       {/* Query Bar */}
       <form onSubmit={handleSubmit} className="flex gap-2.5 max-w-2xl mx-auto animate-fade-in-up stagger-5">
         <div className="relative flex-1">
@@ -127,6 +74,13 @@ export default function AbstentionPage() {
             className="input-field pl-11 pr-4 py-3 text-xs sm:text-sm shadow-sm"
           />
         </div>
+        <input
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+          aria-label="User ID"
+          placeholder="User ID"
+          className="input-field w-28 py-3 text-xs font-mono"
+        />
         <button
           type="submit"
           disabled={loading || !question.trim()}
@@ -230,7 +184,7 @@ export default function AbstentionPage() {
 
             {showTechnicalTrace && (
               <div className="mt-4 p-5 rounded-3xl glass-panel border border-slate-200 dark:border-white/[0.08] space-y-5 animate-fade-in-up shadow-xl">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
                   {/* Step 1: Entity Index */}
                   <div className="p-4 rounded-2xl bg-white dark:bg-black/40 border border-slate-200 dark:border-white/[0.06] space-y-2.5 shadow-sm">
                     <span className="section-label">1. Entity Index</span>
@@ -246,24 +200,43 @@ export default function AbstentionPage() {
                     </div>
                   </div>
 
-                  {/* Step 2: Subgraph */}
+                  {/* Step 2: Subgraph Evidence */}
                   <div className="p-4 rounded-2xl bg-white dark:bg-black/40 border border-slate-200 dark:border-white/[0.06] space-y-2.5 shadow-sm">
-                    <span className="section-label">2. Subgraph Paths</span>
+                    <span className="section-label">2. Graph Evidence (Cypher)</span>
                     <div className="text-xs text-slate-600 dark:text-slate-300 pt-1 space-y-2 font-medium">
                       <div className="flex justify-between">
-                        <span>Connected Nodes:</span>
+                        <span>Retrieved Nodes:</span>
                         <span className="font-mono font-bold text-amber-600 dark:text-amber-400">{data.subgraph_nodes_found}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Relation Density:</span>
-                        <span className="font-mono font-bold text-sky-600 dark:text-sky-400">{Math.round((data.confidence_breakdown?.relation_density || 0) * 100)}%</span>
+                        <span>Entity Support:</span>
+                        <span className="font-mono font-bold text-sky-600 dark:text-sky-400">
+                          {data.graph_evidence && Object.keys(data.graph_evidence).length > 0
+                            ? `${Object.values(data.graph_evidence).reduce((acc, v) => acc + v.supporting_facts, 0)} facts`
+                            : '0 facts'}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Step 3: Confidence */}
+                  {/* Step 3: Graph Density & Coverage */}
                   <div className="p-4 rounded-2xl bg-white dark:bg-black/40 border border-slate-200 dark:border-white/[0.06] space-y-2.5 shadow-sm">
-                    <span className="section-label">3. Confidence vs Threshold</span>
+                    <span className="section-label">3. Topology Coverage</span>
+                    <div className="text-xs text-slate-600 dark:text-slate-300 pt-1 space-y-2 font-medium">
+                      <div className="flex justify-between">
+                        <span>Relation Density:</span>
+                        <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{Math.round((data.confidence_breakdown?.relation_density || 0) * 100)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Entity Coverage:</span>
+                        <span className="font-mono font-bold text-purple-600 dark:text-purple-400">{Math.round((data.confidence_breakdown?.entity_coverage || 0) * 100)}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 4: Calibrated Decision */}
+                  <div className="p-4 rounded-2xl bg-white dark:bg-black/40 border border-slate-200 dark:border-white/[0.06] space-y-2.5 shadow-sm">
+                    <span className="section-label">4. Calibrated Decision</span>
                     <div className="text-xs text-slate-600 dark:text-slate-300 pt-1 space-y-2 font-medium">
                       <div className="flex justify-between">
                         <span>Score:</span>
@@ -275,6 +248,14 @@ export default function AbstentionPage() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Mathematical Formula Callout */}
+                <div className="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-xs font-mono text-slate-700 dark:text-slate-300">
+                  <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block mb-1">
+                    Graph-Native Calibration Formula (confidence.py)
+                  </span>
+                  <code>final_score = 0.35 * coverage + 0.45 * density + 0.20 * relationship_coverage - conflict_penalty</code>
                 </div>
 
                 {/* OpenCypher Query */}

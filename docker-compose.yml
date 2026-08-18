@@ -5,7 +5,7 @@ version: "3.9"
 
 services:
   hydradb:
-    image: ghcr.io/hydra-db/hydradb:latest
+    image: ghcr.io/hydra-db/hydradb:0.1.1@sha256:db78309a233be54662db29744047e985a39b51c45a270d1a1f47c31a62cdb709
     container_name: memorygraph-hydradb
     restart: unless-stopped
     ports:

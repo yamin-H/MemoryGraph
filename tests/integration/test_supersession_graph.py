@@ -33,8 +33,8 @@ def test_supersession_rajshahi_to_dhaka(hydradb_client):
     # Verify SUPERSEDES edge exists
     with hydradb_client._driver.session() as db_session:
         result = db_session.run("""
-            MATCH (old:Fact)-[:SUPERSEDES]->(new:Fact)
-            WHERE old.content CONTAINS 'Rajshahi' AND new.content CONTAINS 'Dhaka'
+            MATCH (new:Fact)-[:SUPERSEDES]->(old:Fact)
+            WHERE new.content CONTAINS 'Dhaka' AND old.content CONTAINS 'Rajshahi'
             RETURN old, new
         """)
         assert result.single() is not None
@@ -96,9 +96,9 @@ def test_supersession_job_change(hydradb_client):
     with hydradb_client._driver.session() as db_session:
         result = db_session.run("""
             MATCH (f1:Fact)-[:SUPERSEDES]->(f2:Fact)-[:SUPERSEDES]->(f3:Fact)
-            WHERE f1.content CONTAINS 'software engineer'
+            WHERE f1.content CONTAINS 'tech lead'
               AND f2.content CONTAINS 'senior engineer'
-              AND f3.content CONTAINS 'tech lead'
+              AND f3.content CONTAINS 'software engineer'
             RETURN f1, f2, f3
         """)
         assert result.single() is not None
@@ -141,8 +141,8 @@ def test_supersession_pet_change(hydradb_client):
     # Verify supersession
     with hydradb_client._driver.session() as db_session:
         result = db_session.run("""
-            MATCH (old:Fact)-[:SUPERSEDES]->(new:Fact)
-            WHERE old.content CONTAINS 'Mochi' AND new.content CONTAINS 'Pixel'
+            MATCH (new:Fact)-[:SUPERSEDES]->(old:Fact)
+            WHERE new.content CONTAINS 'Pixel' AND old.content CONTAINS 'Mochi'
             RETURN old, new
         """)
         assert result.single() is not None
@@ -234,8 +234,8 @@ def test_supersession_different_entities_no_cross(hydradb_client):
     # No cross-entity supersession
     with hydradb_client._driver.session() as db_session:
         result = db_session.run("""
-            MATCH (old:Fact)-[:SUPERSEDES]->(new:Fact)
-            WHERE old.content CONTAINS 'Dhaka' AND new.content CONTAINS 'London'
+            MATCH (new:Fact)-[:SUPERSEDES]->(old:Fact)
+            WHERE new.content CONTAINS 'London' AND old.content CONTAINS 'Dhaka'
             RETURN count(*) AS c
         """)
         assert result.single()["c"] == 0

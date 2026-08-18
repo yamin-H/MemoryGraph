@@ -5,32 +5,55 @@ Assigns confidence scores to answers based on supporting facts.
 
 from typing import Any
 
+CONFIDENCE_THRESHOLD = 0.35
+
+
+def enforce_confidence_threshold(
+    abstention_result: dict[str, Any],
+    confidence_result: dict[str, Any],
+) -> dict[str, Any]:
+    """Turn a low-confidence retrieval into a first-class abstention."""
+    if abstention_result.get("should_abstain"):
+        return abstention_result
+
+    score = confidence_result.get("score", 0.0)
+    if score >= CONFIDENCE_THRESHOLD:
+        return abstention_result
+
+    return {
+        **abstention_result,
+        "should_abstain": True,
+        "abstention_reason": (
+            f"confidence score ({score:.2f}) is below the verification threshold "
+            f"({CONFIDENCE_THRESHOLD:.2f})"
+        ),
+        "facts_to_use": [],
+    }
+
 
 def calculate_confidence(
     facts_used: list[dict[str, Any]],
     abstention_result: dict[str, Any],
     parsed_question: dict[str, Any],
+    graph_evidence: dict[str, dict[str, int]] | None = None,
 ) -> dict[str, Any]:
     """Calculate confidence score for an answer.
 
-    Scoring factors:
-    - Number of supporting facts (more = higher, +0.1 per fact, max +0.3)
-    - Recency of facts (newer = higher, +0.1 for most recent session)
-    - Supersession applied (+0.15)
-    - Abstention considered (-0.2)
-
-    Base score: 0.5
+    Scores only evidence returned by graph aggregation. There is intentionally no
+    base score: a weakly connected subgraph must not become a confident answer
+    merely because a fact happened to be retrieved.
 
     Args:
         facts_used: List of facts being used for the answer
         abstention_result: Abstention check result
         parsed_question: Parsed question information
+        graph_evidence: Per-fact Cypher aggregation results. Each entry contains
+            supporting_facts and related_entities for the user-scoped subgraph.
 
     Returns:
         Dict with score and reasoning
     """
-    base_score = 0.5
-    reasoning_parts = []
+    reasoning_parts: list[str] = []
 
     # Number of supporting facts
     num_facts = len(facts_used)
@@ -40,43 +63,32 @@ def calculate_confidence(
             "reasoning": "No supporting facts found",
         }
 
-    facts_bonus = min(num_facts * 0.1, 0.3)
-    reasoning_parts.append(f"{num_facts} supporting fact{'s' if num_facts > 1 else ''}")
+    graph_evidence = graph_evidence or {}
+    evidence_rows = [graph_evidence.get(str(f.get("fact_id")), {}) for f in facts_used]
+    evidence_backed = [row for row in evidence_rows if row]
+    if not evidence_backed:
+        return {
+            "score": 0.0,
+            "reasoning": "No graph aggregation evidence found for retrieved facts",
+        }
 
-    # Recency bonus
-    recency_bonus = 0.0
-    if facts_used:
-        # Get most recent session
-        most_recent = max(
-            facts_used,
-            key=lambda f: f.get("session_started_at") or f.get("created_at") or "",
-        )
-        session_id = most_recent.get("session_id", "unknown")
-        recency_bonus = 0.1
-        reasoning_parts.append(f"most recent session {session_id}")
+    # Coverage says how much of the candidate answer has a user-scoped graph
+    # witness. Density measures corroborating facts connected through the same
+    # entity. Relationship coverage prevents isolated nodes from scoring highly.
+    coverage = len(evidence_backed) / num_facts
+    average_support = sum(row.get("supporting_facts", 0) for row in evidence_backed) / len(evidence_backed)
+    density = min(average_support / 3.0, 1.0)
+    relationship_coverage = sum(1 for row in evidence_backed if row.get("related_entities", 0) > 0) / len(evidence_backed)
+    final_score = 0.35 * coverage + 0.45 * density + 0.20 * relationship_coverage
+    reasoning_parts.extend([
+        f"{len(evidence_backed)}/{num_facts} facts verified by graph aggregation",
+        f"average entity support {average_support:.1f}",
+        f"relationship coverage {relationship_coverage:.0%}",
+    ])
 
-    # Supersession bonus
-    supersession_bonus = 0.0
-    for fact in facts_used:
-        if fact.get("superseded_by"):
-            supersession_bonus = 0.15
-            reasoning_parts.append("supersession applied")
-            break
-
-    # Abstention penalty
-    abstention_penalty = 0.0
-    if abstention_result.get("should_abstain"):
-        abstention_penalty = 0.2
-        reasoning_parts.append("abstention considered")
-
-    # Conflict penalty
-    conflict_penalty = 0.0
     if abstention_result.get("has_conflict"):
-        conflict_penalty = 0.1
+        final_score -= 0.25
         reasoning_parts.append("conflict detected")
-
-    # Calculate final score
-    final_score = base_score + facts_bonus + recency_bonus + supersession_bonus - abstention_penalty - conflict_penalty
 
     # Clamp to [0.0, 1.0]
     final_score = max(0.0, min(1.0, final_score))

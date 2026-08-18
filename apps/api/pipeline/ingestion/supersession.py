@@ -67,6 +67,7 @@ def detect_supersession(
     client: Groq,
     hydra: HydraDB,
     new_facts: list[dict[str, Any]],
+    user_id: str,
     model: str = "llama-3.1-8b-instant",
 ) -> list[dict[str, Any]]:
     """Detect facts that should be superseded by new facts.
@@ -75,6 +76,7 @@ def detect_supersession(
         client: Groq client instance
         hydra: HydraDB connection (must be connected)
         new_facts: List of new facts to check for contradictions
+        user_id: Owner of the facts being ingested
         model: Groq model to use
 
     Returns:
@@ -91,9 +93,11 @@ def detect_supersession(
             # Query facts for this entity
             with hydra._driver.session() as session:
                 result = session.run(
-                    "MATCH (f:Fact {is_current: true})-[:MENTIONS]->(e:Entity {name: $name}) "
+                    "MATCH (f:Fact {is_current: true})-[:MENTIONS]->"
+                    "(e:Entity {name: $name, user_id: $user_id}) "
                     "RETURN f.id, f.content, f.is_current",
                     name=entity_name,
+                    user_id=user_id,
                 )
                 for record in result:
                     existing_facts.append({
@@ -154,13 +158,8 @@ def detect_supersession(
                     break
 
             if old_fact_id and new_fact_id:
-                # Mark old fact as not current
-                with hydra._driver.session() as session:
-                    session.run(
-                        "MATCH (f:Fact {id: $fact_id}) SET f.is_current = false",
-                        fact_id=old_fact_id,
-                    )
-
+                # The writer atomically creates the replacement fact, marks this
+                # fact stale, and creates the lineage edge in one transaction.
                 supersessions.append({
                     "new_fact_id": new_fact_id,
                     "supersedes_fact_id": old_fact_id,
@@ -228,7 +227,7 @@ def main():
         print()
 
         # Detect supersession
-        supersessions = detect_supersession(client, hydra, new_facts)
+        supersessions = detect_supersession(client, hydra, new_facts, user_id="alex-user")
 
         print(f"Detected {len(supersessions)} supersession(s):")
         for s in supersessions:

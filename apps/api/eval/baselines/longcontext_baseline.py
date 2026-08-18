@@ -10,7 +10,7 @@ from groq import Groq
 class LongContextBaseline:
     """Long-context baseline using raw LLM context."""
 
-    def __init__(self, groq_api_key: str | None = None, model: str = "llama-3.3-70b-versatile"):
+    def __init__(self, groq_api_key: str | None = None, model: str = "llama-3.1-8b-instant"):
         """Initialize the long-context LLM baseline."""
         self.groq_api_key = groq_api_key or os.environ.get("GROQ_API_KEY")
         self.model = model

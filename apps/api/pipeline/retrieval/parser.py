@@ -24,15 +24,19 @@ def _fallback_parse_question(question: str) -> dict[str, Any]:
     entity_name = None
     lower_question = normalized.lower()
 
+    entities: list[str] = []
     # Detect 1st-person pronoun questions
     if any(phrase in lower_question for phrase in ["my name", "who am i", "about me", "my job", "do i live", "my pet", "my dog", "my cat"]):
         entity_name = "User"
+        entities.append("User")
     else:
         for match in re.finditer(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", normalized):
             candidate = match.group(0)
             if candidate.lower() not in {"where", "what", "who", "when", "how", "which", "this", "that", "there", "here", "hello", "hi"}:
-                entity_name = candidate
-                break
+                if candidate not in entities:
+                    entities.append(candidate)
+        if entities:
+            entity_name = entities[0]
 
     keywords: list[str] = []
     if any(phrase in lower_question for phrase in ["name", "who am i", "called"]):
@@ -56,6 +60,7 @@ def _fallback_parse_question(question: str) -> dict[str, Any]:
 
     return {
         "entity_name": entity_name,
+        "entities": entities if entities else ([entity_name] if entity_name else []),
         "question_type": question_type,
         "original_question": question,
         "keywords": keywords,
@@ -132,28 +137,30 @@ def parse_question(
         if "keywords" not in result:
             result["keywords"] = []
 
+        if "entities" not in result or not result["entities"]:
+            if result.get("entity_name"):
+                result["entities"] = [result["entity_name"]]
+            else:
+                fallback = _fallback_parse_question(question)
+                result["entities"] = fallback.get("entities", [])
+                if not result.get("entity_name"):
+                    result["entity_name"] = fallback.get("entity_name")
+
         if result.get("entity_name") is None and "original_question" in result:
             fallback = _fallback_parse_question(question)
             result["entity_name"] = fallback["entity_name"]
+            result["entities"] = fallback["entities"]
             result["question_type"] = fallback["question_type"]
             result["keywords"] = fallback["keywords"]
 
         return result
 
     except json.JSONDecodeError:
-        return {
-            "entity_name": None,
-            "question_type": "absent_information",
-            "original_question": question,
-            "keywords": [],
-        }
+        fallback = _fallback_parse_question(question)
+        return fallback
     except Exception:
-        return {
-            "entity_name": None,
-            "question_type": "absent_information",
-            "original_question": question,
-            "keywords": [],
-        }
+        fallback = _fallback_parse_question(question)
+        return fallback
 
 
 def main():

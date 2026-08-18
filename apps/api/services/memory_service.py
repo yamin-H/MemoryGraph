@@ -47,13 +47,13 @@ class MemoryService:
     def query_memory(self, question: str, user_id: str = "anonymous") -> dict[str, Any]:
         """Query the memory graph using the retrieval pipeline.
 
-        User context is carried through the request, even though the underlying
-        retrieval pipeline is currently a thin question->answer wrapper.
+        The retrieval pipeline receives the user ID and restricts graph matches
+        to that user's sessions.
         """
         from pipeline.graph import run_retrieval
 
         try:
-            result = run_retrieval(question)
+            result = run_retrieval(question, user_id=user_id)
         except Exception as exc:  # pragma: no cover - graph unavailable path
             return {
                 "answer": "I don't have enough trusted memory to answer that yet.",
@@ -76,7 +76,7 @@ class MemoryService:
             answer["user_id"] = user_id
         return answer
 
-    def get_session_graph(self, session_id: str) -> dict[str, Any]:
+    def get_session_graph(self, session_id: str, user_id: str = "anonymous") -> dict[str, Any]:
         """Return the graph representation for a single session."""
         self.hydra.ensure_connected()
         nodes: list[dict[str, Any]] = []
@@ -85,8 +85,9 @@ class MemoryService:
 
         with self.hydra._driver.session() as session:
             result = session.run(
-                "MATCH (s:Session {session_id: $session_id}) RETURN s.id, s.session_id, s.user_id, s.started_at",
+                "MATCH (s:Session {session_id: $session_id, user_id: $user_id}) RETURN s.id, s.session_id, s.user_id, s.started_at",
                 session_id=session_id,
+                user_id=user_id,
             )
             record = result.single()
             if record:
@@ -103,9 +104,10 @@ class MemoryService:
                 })
 
             result = session.run(
-                "MATCH (s:Session {session_id: $session_id})-[:CONTAINS]->(m:Message) "
+                "MATCH (s:Session {session_id: $session_id, user_id: $user_id})-[:CONTAINS]->(m:Message) "
                 "RETURN m.id, m.role, m.content, m.created_at",
                 session_id=session_id,
+                user_id=user_id,
             )
             for record in result:
                 node_id = record["m.id"]
@@ -125,9 +127,10 @@ class MemoryService:
                     edges.append({"source": session_node_id, "target": node_id, "type": "CONTAINS"})
 
             result = session.run(
-                "MATCH (f:Fact)-[:OCCURRED_IN]->(s:Session {session_id: $session_id}) "
+                "MATCH (f:Fact)-[:OCCURRED_IN]->(s:Session {session_id: $session_id, user_id: $user_id}) "
                 "RETURN f.id, f.content, f.confidence, f.is_current",
                 session_id=session_id,
+                user_id=user_id,
             )
             for record in result:
                 node_id = record["f.id"]
@@ -147,7 +150,7 @@ class MemoryService:
 
         return {"nodes": nodes, "edges": edges}
 
-    def get_all_graph(self) -> dict[str, Any]:
+    def get_all_graph(self, user_id: str = "anonymous") -> dict[str, Any]:
         """Return the full graph across all sessions and entities."""
         self.hydra.ensure_connected()
         nodes: list[dict[str, Any]] = []
@@ -157,7 +160,8 @@ class MemoryService:
         with self.hydra._driver.session() as session:
             # Sessions
             result = session.run(
-                "MATCH (s:Session) RETURN s.id, s.session_id, s.user_id, s.started_at, s.status"
+                "MATCH (s:Session {user_id: $user_id}) RETURN s.id, s.session_id, s.user_id, s.started_at, s.status",
+                user_id=user_id,
             )
             for record in result:
                 node_id = record["s.id"]
@@ -178,8 +182,9 @@ class MemoryService:
 
             # Messages + CONTAINS edges
             result = session.run(
-                "MATCH (s:Session)-[:CONTAINS]->(m:Message) "
-                "RETURN s.id, m.id, m.role, m.content, m.created_at"
+                "MATCH (s:Session {user_id: $user_id})-[:CONTAINS]->(m:Message) "
+                "RETURN s.id, m.id, m.role, m.content, m.created_at",
+                user_id=user_id,
             )
             for record in result:
                 msg_id = record["m.id"]
@@ -205,12 +210,12 @@ class MemoryService:
 
             # Facts + OCCURRED_IN edges + Supersedence links
             result = session.run(
-                "MATCH (f:Fact) "
-                "OPTIONAL MATCH (f)-[:OCCURRED_IN]->(s:Session) "
+                "MATCH (f:Fact)-[:OCCURRED_IN]->(s:Session {user_id: $user_id}) "
                 "OPTIONAL MATCH (newer:Fact)-[:SUPERSEDES]->(f) "
                 "RETURN f.id AS id, f.content AS content, f.confidence AS confidence, "
                 "f.is_current AS is_current, f.created_at AS created_at, s.id AS session_node_id, "
-                "s.session_id AS session_id, newer.id AS superseded_by_id, newer.content AS superseded_by"
+                "s.session_id AS session_id, newer.id AS superseded_by_id, newer.content AS superseded_by",
+                user_id=user_id,
             )
             for record in result:
                 fact_id = record["id"] or f"fact-{len(seen_nodes)}"
@@ -243,7 +248,8 @@ class MemoryService:
 
             # Entities
             result = session.run(
-                "MATCH (e:Entity) RETURN e.id AS id, e.name AS name, e.type AS type"
+                "MATCH (e:Entity {user_id: $user_id}) RETURN e.id AS id, e.name AS name, e.type AS type",
+                user_id=user_id,
             )
             for record in result:
                 entity_id = record["id"] or f"entity-{len(seen_nodes)}"
@@ -262,8 +268,9 @@ class MemoryService:
 
             # Summaries + HAS_SUMMARY edges
             result = session.run(
-                "MATCH (s:Session)-[:HAS_SUMMARY]->(sum:Summary) "
-                "RETURN s.id, sum.id, sum.content, sum.created_at"
+                "MATCH (s:Session {user_id: $user_id})-[:HAS_SUMMARY]->(sum:Summary) "
+                "RETURN s.id, sum.id, sum.content, sum.created_at",
+                user_id=user_id,
             )
             for record in result:
                 sum_id = record["sum.id"]
@@ -287,8 +294,8 @@ class MemoryService:
 
             # MENTIONS edges (Fact -> Entity)
             result = session.run(
-                "MATCH (f:Fact)-[:MENTIONS]->(e:Entity) "
-                "RETURN f.id, e.id"
+                "MATCH (f:Fact)-[:MENTIONS]->(e:Entity {user_id: $user_id}) RETURN f.id, e.id",
+                user_id=user_id,
             )
             for record in result:
                 edges.append({
@@ -299,8 +306,8 @@ class MemoryService:
 
             # SUPERSEDES edges (Fact -> Fact)
             result = session.run(
-                "MATCH (f1:Fact)-[:SUPERSEDES]->(f2:Fact) "
-                "RETURN f1.id, f2.id"
+                "MATCH (f1:Fact)-[:SUPERSEDES]->(f2:Fact) RETURN f1.id, f2.id",
+                user_id=user_id,
             )
             for record in result:
                 edges.append({
@@ -311,8 +318,9 @@ class MemoryService:
 
             # INVALIDATED_BY edges (Fact -> Session)
             result = session.run(
-                "MATCH (f:Fact)-[:INVALIDATED_BY]->(s:Session) "
-                "RETURN f.id, s.id"
+                "MATCH (f:Fact)-[:INVALIDATED_BY]->(s:Session {user_id: $user_id}) "
+                "RETURN f.id, s.id",
+                user_id=user_id,
             )
             for record in result:
                 edges.append({
@@ -321,53 +329,11 @@ class MemoryService:
                     "type": "INVALIDATED_BY",
                 })
 
-        # Provide rich demo topology if graph database is currently unpopulated
-        if not nodes:
-            nodes = [
-                {"id": "ent-alex", "label": "Alex", "type": "Entity", "data": {"name": "Alex", "type": "Person"}},
-                {"id": "ent-dhaka", "label": "Dhaka", "type": "Entity", "data": {"name": "Dhaka", "type": "Location"}},
-                {"id": "ent-rajshahi", "label": "Rajshahi", "type": "Entity", "data": {"name": "Rajshahi", "type": "Location"}},
-                {"id": "ent-pixel", "label": "Pixel (Cat)", "type": "Entity", "data": {"name": "Pixel", "type": "Pet"}},
-                {"id": "ent-hydra", "label": "HydraDB", "type": "Entity", "data": {"name": "HydraDB", "type": "Technology"}},
-                {"id": "sess-01", "label": "Session #1", "type": "Session", "data": {"session_id": "session-001", "started_at": "2024-01-01T09:00:00Z"}},
-                {"id": "sess-08", "label": "Session #8", "type": "Session", "data": {"session_id": "session-008", "started_at": "2024-01-20T11:00:00Z"}},
-                {"id": "sess-20", "label": "Session #20", "type": "Session", "data": {"session_id": "session-020", "started_at": "2024-02-10T14:00:00Z"}},
-                {"id": "fact-1", "label": "Lives in Rajshahi", "type": "Fact", "data": {"content": "Alex lives in Rajshahi.", "is_current": False, "confidence": 0.92, "session_id": "session-001", "created_at": "2024-01-01T09:00:00Z", "superseded_by": "Alex moved to Dhaka and currently lives there."}},
-                {"id": "fact-2", "label": "Lives in Dhaka", "type": "Fact", "data": {"content": "Alex moved to Dhaka and currently lives there.", "is_current": True, "confidence": 0.98, "session_id": "session-020", "created_at": "2024-02-10T14:00:00Z"}},
-                {"id": "fact-3", "label": "Junior Engineer", "type": "Fact", "data": {"content": "Alex works as a junior frontend engineer.", "is_current": False, "confidence": 0.90, "session_id": "session-001", "created_at": "2024-01-01T09:10:00Z", "superseded_by": "Alex was promoted to senior fullstack engineer."}},
-                {"id": "fact-4", "label": "Senior Fullstack", "type": "Fact", "data": {"content": "Alex was promoted to senior fullstack engineer.", "is_current": False, "confidence": 0.94, "session_id": "session-008", "created_at": "2024-01-20T11:00:00Z", "superseded_by": "Alex is Lead AI Systems Architect at a tech startup."}},
-                {"id": "fact-5", "label": "Lead AI Architect", "type": "Fact", "data": {"content": "Alex is Lead AI Systems Architect at a tech startup.", "is_current": True, "confidence": 0.97, "session_id": "session-020", "created_at": "2024-02-10T14:15:00Z"}},
-                {"id": "fact-6", "label": "Has cat Pixel", "type": "Fact", "data": {"content": "Alex adopted a pet cat named Pixel.", "is_current": True, "confidence": 0.95, "session_id": "session-008", "created_at": "2024-01-20T11:30:00Z"}},
-                {"id": "fact-7", "label": "Uses HydraDB", "type": "Fact", "data": {"content": "Alex uses HydraDB as graph-native agent memory layer.", "is_current": True, "confidence": 0.96, "session_id": "session-020", "created_at": "2024-02-10T14:30:00Z"}},
-            ]
-            edges = [
-                {"source": "fact-2", "target": "fact-1", "type": "SUPERSEDES"},
-                {"source": "fact-5", "target": "fact-4", "type": "SUPERSEDES"},
-                {"source": "fact-4", "target": "fact-3", "type": "SUPERSEDES"},
-                {"source": "fact-1", "target": "ent-alex", "type": "MENTIONS"},
-                {"source": "fact-1", "target": "ent-rajshahi", "type": "MENTIONS"},
-                {"source": "fact-2", "target": "ent-alex", "type": "MENTIONS"},
-                {"source": "fact-2", "target": "ent-dhaka", "type": "MENTIONS"},
-                {"source": "fact-3", "target": "ent-alex", "type": "MENTIONS"},
-                {"source": "fact-4", "target": "ent-alex", "type": "MENTIONS"},
-                {"source": "fact-5", "target": "ent-alex", "type": "MENTIONS"},
-                {"source": "fact-6", "target": "ent-alex", "type": "MENTIONS"},
-                {"source": "fact-6", "target": "ent-pixel", "type": "MENTIONS"},
-                {"source": "fact-7", "target": "ent-alex", "type": "MENTIONS"},
-                {"source": "fact-7", "target": "ent-hydra", "type": "MENTIONS"},
-                {"source": "fact-1", "target": "sess-01", "type": "OCCURRED_IN"},
-                {"source": "fact-3", "target": "sess-01", "type": "OCCURRED_IN"},
-                {"source": "fact-4", "target": "sess-08", "type": "OCCURRED_IN"},
-                {"source": "fact-6", "target": "sess-08", "type": "OCCURRED_IN"},
-                {"source": "fact-2", "target": "sess-20", "type": "OCCURRED_IN"},
-                {"source": "fact-5", "target": "sess-20", "type": "OCCURRED_IN"},
-                {"source": "fact-7", "target": "sess-20", "type": "OCCURRED_IN"},
-            ]
-
-        return {"nodes": nodes, "edges": edges}
+        user_cell_id = getattr(self.hydra, "get_user_cell_id", lambda u: "cell-0")(user_id) if hasattr(self.hydra, "get_user_cell_id") else "cell-0"
+        return {"nodes": nodes, "edges": edges, "user_id": user_id, "cell_id": user_cell_id}
 
 
-    def get_entity_memory(self, entity_name: str, user_id: str | None = None) -> dict[str, Any]:
+    def get_entity_memory(self, entity_name: str, user_id: str = "anonymous") -> dict[str, Any]:
         """Return the full temporal memory state for an entity.
 
         This includes current facts, historical superseded facts, and invalidated
@@ -381,14 +347,13 @@ class MemoryService:
         try:
             self.hydra.ensure_connected()
             with self.hydra._driver.session() as session:
-                params = {"entity_name": entity_name}
+                params = {"entity_name": entity_name, "user_id": user_id}
                 current_query = (
-                    "MATCH (f:Fact {is_current: true})-[:MENTIONS]->(e:Entity {name: $entity_name}) "
-                    "OPTIONAL MATCH (f)-[:OCCURRED_IN]->(s:Session) "
+                    "MATCH (f:Fact)-[:MENTIONS]->(e:Entity {name: $entity_name, user_id: $user_id}) "
+                    "MATCH (f)-[:OCCURRED_IN]->(s:Session {user_id: $user_id}) "
+                    "WHERE NOT (f)<-[:SUPERSEDES*1..]-(newer_f:Fact) "
+                    "AND NOT (f)-[:INVALIDATED_BY]->(inv:Session) "
                 )
-                if user_id is not None:
-                    current_query += "WHERE s.user_id = $user_id "
-                    params["user_id"] = user_id
                 current_query += "RETURN f.id, f.content, f.confidence, f.created_at, s.session_id"
 
                 result = session.run(current_query, **params)
@@ -402,13 +367,11 @@ class MemoryService:
                     })
 
                 historical_query = (
-                    "MATCH (f:Fact {is_current: false})-[:MENTIONS]->(e:Entity {name: $entity_name}) "
-                    "MATCH (f)<-[:SUPERSEDES]-(newer:Fact) "
-                    "OPTIONAL MATCH (f)-[:OCCURRED_IN]->(s:Session) "
+                    "MATCH (newer:Fact)-[:SUPERSEDES*1..]->(f:Fact)-[:MENTIONS]->"
+                    "(e:Entity {name: $entity_name, user_id: $user_id}) "
+                    "MATCH (f)-[:OCCURRED_IN]->(s:Session {user_id: $user_id}) "
                 )
-                if user_id is not None:
-                    historical_query += "WHERE s.user_id = $user_id "
-                historical_query += "RETURN f.id, f.content, f.confidence, f.created_at, s.session_id, newer.id as superseded_by"
+                historical_query += "RETURN DISTINCT f.id, f.content, f.confidence, f.created_at, s.session_id, newer.id as superseded_by"
 
                 result = session.run(historical_query, **params)
                 for record in result:
@@ -422,11 +385,9 @@ class MemoryService:
                     })
 
                 invalidated_query = (
-                    "MATCH (f:Fact)-[:INVALIDATED_BY]->(s:Session) "
-                    "MATCH (f)-[:MENTIONS]->(e:Entity {name: $entity_name}) "
+                    "MATCH (f:Fact)-[:INVALIDATED_BY]->(s:Session {user_id: $user_id}) "
+                    "MATCH (f)-[:MENTIONS]->(e:Entity {name: $entity_name, user_id: $user_id}) "
                 )
-                if user_id is not None:
-                    invalidated_query += "WHERE s.user_id = $user_id "
                 invalidated_query += "RETURN f.id, f.content, f.confidence, f.created_at, s.session_id, s.started_at AS invalidated_at"
 
                 result = session.run(invalidated_query, **params)
@@ -461,18 +422,18 @@ class MemoryService:
             "status": "ok",
         }
 
-    def get_entity_history(self, entity_name: str, user_id: str | None = None) -> dict[str, Any]:
+    def get_entity_history(self, entity_name: str, user_id: str = "anonymous") -> dict[str, Any]:
         """Backward-compatible wrapper for the earlier entity-history API."""
         return self.get_entity_memory(entity_name=entity_name, user_id=user_id)
 
-    def get_recent_sessions(self, limit: int = 50) -> list[dict[str, Any]]:
+    def get_recent_sessions(self, user_id: str = "anonymous", limit: int = 50) -> list[dict[str, Any]]:
         """Return list of recent sessions stored in HydraDB."""
         sessions: list[dict[str, Any]] = []
         try:
             self.hydra.ensure_connected()
             with self.hydra._driver.session() as session:
                 query = (
-                    "MATCH (s:Session) "
+                    "MATCH (s:Session {user_id: $user_id}) "
                     "OPTIONAL MATCH (s)-[:HAS_SUMMARY]->(sum:Summary) "
                     "OPTIONAL MATCH (f:Fact)-[:OCCURRED_IN]->(s) "
                     "RETURN s.session_id AS session_id, s.user_id AS user_id, "
@@ -480,7 +441,7 @@ class MemoryService:
                     "count(DISTINCT f) AS fact_count "
                     "ORDER BY s.started_at DESC LIMIT $limit"
                 )
-                result = session.run(query, limit=limit)
+                result = session.run(query, user_id=user_id, limit=limit)
                 for record in result:
                     sessions.append({
                         "id": record["session_id"],
@@ -544,57 +505,84 @@ class MemoryService:
         except Exception:
             pass
 
-        # If no facts in DB yet, supply realistic sample knowledge units for Alex/Dhaka/Rajshahi demo
+        # Return an honest comparison result when the graph contains no facts.
         if not all_raw_facts:
-            all_raw_facts = [
-                {"content": "Alex moved to Dhaka and currently lives there.", "is_current": True, "confidence": 0.95, "created_at": "2024-02-10T14:00:00Z", "session_id": "session-020", "superseded_by": None},
-                {"content": "Alex lives in Rajshahi.", "is_current": False, "confidence": 0.90, "created_at": "2024-01-05T09:00:00Z", "session_id": "session-003", "superseded_by": "Alex moved to Dhaka and currently lives there."},
-                {"content": "Alex works as a senior software engineer at a tech startup.", "is_current": True, "confidence": 0.92, "created_at": "2024-01-05T09:05:00Z", "session_id": "session-003", "superseded_by": None},
-                {"content": "Alex has a pet cat named Pixel.", "is_current": True, "confidence": 0.94, "created_at": "2024-01-08T11:00:00Z", "session_id": "session-005", "superseded_by": None},
-            ]
-            active_facts = [f for f in all_raw_facts if f["is_current"]]
-            superseded_facts = [f for f in all_raw_facts if not f["is_current"]]
+            return {
+                "question": question,
+                "user_id": user_id,
+                "winner": "none",
+                "diff_explanation": "No facts are stored in the memory graph. Ingest a session before running a comparison.",
+                "memorygraph": {
+                    "answer": mg_result.get("answer", "I don't have that information."),
+                    "confidence": mg_result.get("confidence", 0.0),
+                    "abstained": True,
+                    "latency_ms": mg_latency,
+                    "facts_examined": 0,
+                    "source_sessions": [],
+                    "active_facts": [],
+                    "superseded_facts_filtered": [],
+                    "opencypher_query": None,
+                },
+                "vector_rag": {
+                    "answer": "No facts are available for vector retrieval.",
+                    "confidence": 0.0,
+                    "abstained": True,
+                    "latency_ms": 0,
+                    "retrieved_chunks": [],
+                    "failure_mode": "no_facts_in_graph",
+                    "retrieval_method": "Unavailable until sessions are ingested",
+                },
+            }
 
-        # --- 2. RUN REAL VECTOR RAG PIPELINE ---
+        # --- 2. RUN REAL VECTOR RAG PIPELINE (TfidfVectorizer + Cosine Similarity) ---
         vec_start = time.time()
 
-        # Vector RAG computes semantic token similarity over ALL raw facts (without graph knowledge)
-        def compute_similarity(q: str, doc: str) -> float:
-            q_words = set(re.findall(r"\w+", q.lower()))
-            d_words = set(re.findall(r"\w+", doc.lower()))
-            if not q_words or not d_words:
-                return 0.0
-            overlap = len(q_words.intersection(d_words))
-            sim = overlap / math.sqrt(len(q_words) * len(d_words))
-            for qw in q_words:
-                if qw in d_words and len(qw) > 3:
-                    sim += 0.25
-            return min(round(sim, 3), 0.98)
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
 
+        fact_corpus = [fact["content"] for fact in all_raw_facts]
         scored_chunks = []
-        for fact in all_raw_facts:
-            sim = compute_similarity(question, fact["content"])
-            scored_chunks.append({
-                "content": fact["content"],
-                "similarity_score": sim,
-                "session_id": fact.get("session_id", "session-unknown"),
-                "is_outdated": not fact.get("is_current", True),
-                "created_at": fact.get("created_at", ""),
-                "superseded_by": fact.get("superseded_by"),
-            })
 
-        # Rank by vector similarity (top 3)
+        try:
+            vectorizer = TfidfVectorizer(ngram_range=(1, 2), stop_words="english")
+            corpus_vectors = vectorizer.fit_transform(fact_corpus)
+            query_vector = vectorizer.transform([question])
+            cosine_scores = cosine_similarity(query_vector, corpus_vectors)[0]
+
+            for idx, fact in enumerate(all_raw_facts):
+                sim = float(cosine_scores[idx])
+                scored_chunks.append({
+                    "content": fact["content"],
+                    "similarity_score": round(sim, 4),
+                    "session_id": fact.get("session_id", "session-unknown"),
+                    "is_outdated": not fact.get("is_current", True),
+                    "created_at": fact.get("created_at", ""),
+                    "superseded_by": fact.get("superseded_by"),
+                })
+        except Exception:
+            # Fallback if corpus vocabulary is completely empty
+            for fact in all_raw_facts:
+                scored_chunks.append({
+                    "content": fact["content"],
+                    "similarity_score": 0.0,
+                    "session_id": fact.get("session_id", "session-unknown"),
+                    "is_outdated": not fact.get("is_current", True),
+                    "created_at": fact.get("created_at", ""),
+                    "superseded_by": fact.get("superseded_by"),
+                })
+
+        # Rank by cosine vector similarity (top 3)
         scored_chunks.sort(key=lambda x: x["similarity_score"], reverse=True)
         top_vector_chunks = scored_chunks[:3]
 
         # Check if vector retrieved contradictory / outdated facts
-        has_outdated_in_top = any(c["is_outdated"] for c in top_vector_chunks if c["similarity_score"] > 0.3)
+        has_outdated_in_top = any(c["is_outdated"] for c in top_vector_chunks if c["similarity_score"] > 0.15)
         max_sim = top_vector_chunks[0]["similarity_score"] if top_vector_chunks else 0.0
 
         # Synthesize Vector RAG Answer with Groq (or algorithmic fallback)
         vector_answer = ""
         groq_api_key = settings.groq_api_key
-        if max_sim < 0.25:
+        if max_sim < 0.10:
             vector_answer = "I don't have enough information in the vector database to answer that question."
             vector_abstained = True
             vector_failure_mode = "none"
@@ -634,36 +622,57 @@ class MemoryService:
 
         vec_latency = int((time.time() - vec_start) * 1000)
 
-        # --- 3. SYNTHESIZE COMPARISON VERDICT ---
+        # --- 3. SYNTHESIZE DYNAMIC COMPARISON VERDICT ---
         mg_abstained = mg_result.get("abstained", False)
         mg_answer = mg_result.get("answer", "")
         mg_conf = mg_result.get("confidence", 0.0)
 
-        if has_outdated_in_top:
+        # Dynamic winner calculation based on real evaluation criteria:
+        # 1. Temporal contradiction: Vector retrieved superseded/stale facts while MemoryGraph filtered them
+        if has_outdated_in_top and not mg_abstained and mg_conf > 0.4:
             winner = "memorygraph"
             diff_explanation = (
-                "Vector RAG failed because cosine similarity matches semantic keywords ('lives in', 'Alex') "
-                "equally on both the old and new facts, dumping contradictory statements into LLM context. "
-                "MemoryGraph followed the HydraDB OpenCypher path to filter out superseded nodes and selected the active fact."
+                "Vector RAG retrieved superseded/outdated historical facts because cosine similarity treats all documents identically regardless of temporal invalidation. "
+                "MemoryGraph traversed the HydraDB graph, applied [:SUPERSEDES] edge resolution, and returned only current facts."
             )
-        elif max_sim < 0.25 and not mg_abstained and mg_conf > 0.7:
+        # 2. Both abstained due to missing information
+        elif vector_abstained and mg_abstained:
+            winner = "tie"
+            diff_explanation = (
+                "Both systems correctly recognized insufficient evidence in the knowledge base and abstained from hallucinating."
+            )
+        # 3. Vector found high similarity while MemoryGraph had no matching entity/fact
+        elif not vector_abstained and max_sim >= 0.5 and mg_abstained:
+            winner = "vector_rag"
+            diff_explanation = (
+                f"Vector RAG matched relevant text chunks with {max_sim:.2f} cosine similarity and synthesized a valid response, whereas MemoryGraph abstained due to graph traversal constraints."
+            )
+        # 4. MemoryGraph found clear graph evidence while Vector similarity was too weak
+        elif not mg_abstained and mg_conf >= 0.6 and vector_abstained:
             winner = "memorygraph"
             diff_explanation = (
-                "Vector RAG failed to connect indirect multi-hop entity relationships. "
-                "HydraDB traversed connected relationship hops to synthesize the complete answer."
+                f"MemoryGraph resolved connected entity relations with high confidence ({int(mg_conf * 100)}%), whereas Vector RAG semantic similarity fell below the retrieval threshold."
             )
-        elif max_sim < 0.25 and mg_abstained:
-            winner = "memorygraph"
-            diff_explanation = (
-                "Both systems recognized lack of data, but MemoryGraph provided a calibrated confidence score "
-                f"({int(mg_conf * 100)}%) with graph-certified honest abstention justification."
-            )
+        # 5. Both answered: compare latency, confidence, and accuracy
+        elif not vector_abstained and not mg_abstained:
+            if abs(mg_conf - max_sim) <= 0.15:
+                winner = "tie"
+                diff_explanation = (
+                    "Both systems successfully retrieved relevant knowledge and generated answers with comparable confidence."
+                )
+            elif mg_conf > max_sim:
+                winner = "memorygraph"
+                diff_explanation = (
+                    f"MemoryGraph provided structured graph provenance with higher calibrated confidence ({int(mg_conf * 100)}% vs {int(max_sim * 100)}% vector similarity)."
+                )
+            else:
+                winner = "vector_rag"
+                diff_explanation = (
+                    f"Vector RAG retrieved high-scoring semantic context ({int(max_sim * 100)}% similarity) exceeding graph confidence ({int(mg_conf * 100)}%)."
+                )
         else:
-            winner = "memorygraph"
-            diff_explanation = (
-                "MemoryGraph verified fact recency and session provenance via HydraDB graph edges, "
-                f"delivering high confidence ({int(mg_conf * 100)}%) with complete auditability."
-            )
+            winner = "tie"
+            diff_explanation = "Both systems produced comparable outcomes for this query."
 
         opencypher_snippet = (
             "MATCH (e:Entity {name: $entity})\n"
@@ -704,172 +713,180 @@ class MemoryService:
         }
 
     def inspect_abstention(self, question: str, user_id: str = "anonymous") -> dict[str, Any]:
-        """Provide detailed multi-stage reasoning trace for abstention & hallucination prevention.
+        """Provide genuine multi-stage reasoning trace for abstention & hallucination prevention.
 
-        Breaks down:
-        1. Entity Extraction & Knowledge Graph Index Check
-        2. Subgraph OpenCypher Traversal & Relation Existence
-        3. Calibrated Confidence Threshold Scoring (threshold = 0.35)
-        4. Honest Abstention Enforcement vs Naive LLM Hallucination Simulation
+        Uses the real retrieval pipeline:
+        1. Dynamic Question & Entity Parsing
+        2. HydraDB Graph Entity Index & Subgraph Verification
+        3. Real OpenCypher Traversal & Temporal Ranking
+        4. Graph Evidence Aggregation & Calibrated Confidence Scoring (threshold = 0.35)
+        5. First-class Honest Abstention Enforcement vs Ungrounded Synthesis Contrast
         """
-        import re
+        import os
         import time
+        from groq import Groq
+        from config import settings
+        from pipeline.retrieval.parser import parse_question, _fallback_parse_question
+        from pipeline.retrieval.traversal import traverse_for_question, get_confidence_evidence
+        from pipeline.retrieval.ranker import rank_facts_by_time
+        from pipeline.retrieval.abstention import check_abstention
+        from pipeline.retrieval.confidence import calculate_confidence, enforce_confidence_threshold, CONFIDENCE_THRESHOLD
 
         start_time = time.time()
-        q_lower = question.lower()
+        self.hydra.ensure_connected()
 
-        # Step 1: Entity Extraction & Graph Index Check
+        # Step 1: Parse question dynamically using LLM or rule-based fallback
+        groq_api_key = settings.groq_api_key or os.environ.get("GROQ_API_KEY")
+        parsed_question = None
+        if groq_api_key and not groq_api_key.startswith("gsk_mock_") and groq_api_key.strip():
+            try:
+                groq_client = Groq(api_key=groq_api_key)
+                parsed_question = parse_question(groq_client, question)
+            except Exception:
+                parsed_question = _fallback_parse_question(question)
+        else:
+            parsed_question = _fallback_parse_question(question)
+
+        extracted_entity_name = parsed_question.get("entity_name")
+        keywords = parsed_question.get("keywords", [])
+        question_type = parsed_question.get("question_type", "current_fact")
+
+        # Step 2: Check entity presence in user-scoped HydraDB knowledge graph
         extracted_entities = []
-        # Check standard potential entities in query
-        possible_entities = [
-            {"name": "Alex", "type": "Person", "pattern": r"\balex\b"},
-            {"name": "Pixel", "type": "Pet (Cat)", "pattern": r"\bpixel\b"},
-            {"name": "Cat", "type": "Animal", "pattern": r"\bcat\b"},
-            {"name": "Dog", "type": "Animal (Unrecorded)", "pattern": r"\bdog\b"},
-            {"name": "Dhaka", "type": "Location", "pattern": r"\bdhaka\b"},
-            {"name": "Rajshahi", "type": "Location", "pattern": r"\brajshahi\b"},
-            {"name": "HydraDB", "type": "Technology", "pattern": r"\bhydradb\b"},
-            {"name": "University", "type": "Education (Unrecorded)", "pattern": r"\b(university|college|degree|graduat)\b"},
-            {"name": "Car", "type": "Vehicle (Unrecorded)", "pattern": r"\b(car|vehicle|drive|toyota|tesla|bmw)\b"},
-            {"name": "Salary", "type": "Compensation (Unrecorded)", "pattern": r"\b(salary|compensation|earn|pay)\b"},
-            {"name": "Tech Startup", "type": "Company", "pattern": r"\b(startup|company|job|work)\b"},
-        ]
+        in_graph = False
+        entity_type = "Entity"
 
-        found_in_graph_count = 0
-        total_extracted_count = 0
+        if extracted_entity_name:
+            with self.hydra._driver.session() as db_session:
+                res = db_session.run(
+                    "MATCH (e:Entity {user_id: $user_id}) "
+                    "WHERE toLower(e.name) = toLower($name) "
+                    "RETURN e.name AS name, e.type AS type LIMIT 1",
+                    user_id=user_id,
+                    name=extracted_entity_name,
+                )
+                record = res.single()
+                if record:
+                    in_graph = True
+                    entity_type = record.get("type") or "Entity"
+                    extracted_entity_name = record.get("name") or extracted_entity_name
 
-        # Query HydraDB entity index if connected
-        existing_entity_names = set()
-        try:
-            self.hydra.ensure_connected()
-            with self.hydra._driver.session() as session:
-                res = session.run("MATCH (e:Entity) RETURN toLower(e.name) AS name")
-                for r in res:
-                    existing_entity_names.add(r["name"])
-        except Exception:
-            pass
+            extracted_entities.append({
+                "entity": extracted_entity_name,
+                "type": entity_type,
+                "in_graph": in_graph,
+                "status": "Verified in HydraDB Entity Index" if in_graph else "MISSING from Knowledge Graph",
+            })
+        else:
+            # Check if keywords match any known entities
+            with self.hydra._driver.session() as db_session:
+                res = db_session.run(
+                    "MATCH (e:Entity {user_id: $user_id}) RETURN e.name AS name, e.type AS type LIMIT 5",
+                    user_id=user_id,
+                )
+                for record in res:
+                    name = record.get("name", "")
+                    if name.lower() in question.lower():
+                        in_graph = True
+                        extracted_entities.append({
+                            "entity": name,
+                            "type": record.get("type") or "Entity",
+                            "in_graph": True,
+                            "status": "Verified in HydraDB Entity Index",
+                        })
 
-        # If empty graph in dev, use canonical demo entities
-        if not existing_entity_names:
-            existing_entity_names = {"alex", "dhaka", "rajshahi", "pixel", "hydradb", "cat", "tech startup"}
-
-        for ent in possible_entities:
-            if re.search(ent["pattern"], q_lower):
-                total_extracted_count += 1
-                in_graph = ent["name"].lower() in existing_entity_names or (ent["name"] == "Cat" and "pixel" in existing_entity_names)
-                if in_graph:
-                    found_in_graph_count += 1
+            if not extracted_entities:
                 extracted_entities.append({
-                    "entity": ent["name"],
-                    "type": ent["type"],
-                    "in_graph": in_graph,
-                    "status": "Verified in HydraDB Entity Index" if in_graph else "MISSING from Knowledge Graph",
-                })
-
-        if not extracted_entities:
-            words = [w for w in re.findall(r"\w+", question) if len(w) > 4]
-            for w in words[:2]:
-                extracted_entities.append({
-                    "entity": w.capitalize(),
-                    "type": "Concept",
+                    "entity": "Unknown Subject",
+                    "type": "Unindexed Entity",
                     "in_graph": False,
                     "status": "MISSING from Knowledge Graph",
                 })
-                total_extracted_count += 1
 
-        # Step 2: Subgraph Relation Existence & Traversal
-        entity_coverage = (found_in_graph_count / max(1, total_extracted_count))
-        is_dog_query = "dog" in q_lower
-        is_education_query = any(k in q_lower for k in ["university", "college", "degree", "graduat"])
-        is_car_query = any(k in q_lower for k in ["car", "vehicle", "drive"])
-        is_salary_query = any(k in q_lower for k in ["salary", "compensation", "earn", "pay"])
-        is_cat_query = "cat" in q_lower or "pixel" in q_lower
+        # Step 3: Real OpenCypher Traversal & Ranking
+        retrieved_facts = traverse_for_question(self.hydra, parsed_question, user_id=user_id)
+        ranked_facts = rank_facts_by_time(retrieved_facts)
+        raw_abstention = check_abstention(ranked_facts, parsed_question)
 
-        if is_dog_query or is_education_query or is_car_query or is_salary_query or any(not e["in_graph"] for e in extracted_entities):
-            relation_density = 0.05
-            temporal_recency_score = 0.0
-            subgraph_nodes_found = found_in_graph_count
-            final_confidence = round(max(0.08, min(0.24, entity_coverage * 0.25 + relation_density)), 2)
-            abstention_triggered = True
-        elif is_cat_query:
-            relation_density = 0.95
-            temporal_recency_score = 0.90
-            subgraph_nodes_found = 4
-            final_confidence = 0.95
-            abstention_triggered = False
-        else:
-            # General query check via retrieval pipeline
-            res = self.query_memory(question, user_id=user_id)
-            final_confidence = round(res.get("confidence", 0.7), 2)
-            abstention_triggered = res.get("abstained", final_confidence < 0.35)
-            subgraph_nodes_found = res.get("facts_examined", 2)
-            relation_density = 0.8 if not abstention_triggered else 0.15
-            temporal_recency_score = 0.85 if not abstention_triggered else 0.1
+        facts_to_use = raw_abstention.get("facts_to_use", [])
 
-        # Step 3: Calibrated Confidence Components
+        # Step 4: Real Graph Evidence Aggregation & Confidence Calculation
+        graph_evidence = {}
+        if facts_to_use:
+            graph_evidence = get_confidence_evidence(self.hydra, facts_to_use, user_id)
+
+        confidence_result = calculate_confidence(
+            facts_to_use,
+            raw_abstention,
+            parsed_question,
+            graph_evidence=graph_evidence,
+        )
+        final_abstention = enforce_confidence_threshold(raw_abstention, confidence_result)
+
+        final_score = confidence_result.get("score", 0.0)
+        abstention_triggered = final_abstention.get("should_abstain", False)
+        abstention_reason = final_abstention.get("abstention_reason") or "Verified against active knowledge graph."
+
+        # Compute accurate confidence breakdown metrics from actual graph evidence
+        entity_coverage = 1.0 if in_graph else (0.3 if facts_to_use else 0.0)
+        evidence_rows = [graph_evidence.get(str(f.get("fact_id")), {}) for f in facts_to_use]
+        evidence_backed = [r for r in evidence_rows if r]
+        avg_support = (sum(r.get("supporting_facts", 0) for r in evidence_backed) / len(evidence_backed)) if evidence_backed else 0.0
+        relation_density = min(round(avg_support / 3.0, 2), 1.0) if facts_to_use else 0.0
+        temporal_recency = 0.90 if any(f.get("is_current") for f in facts_to_use) else 0.10
+
         confidence_breakdown = {
             "entity_coverage": round(entity_coverage, 2),
             "relation_density": round(relation_density, 2),
-            "temporal_recency": round(temporal_recency_score, 2),
-            "final_confidence": final_confidence,
-            "threshold": 0.35,
+            "temporal_recency": round(temporal_recency, 2),
+            "final_confidence": final_score,
+            "threshold": CONFIDENCE_THRESHOLD,
         }
 
-        # Step 4: Answers & Hallucination Contrast
-        if is_dog_query:
-            abstention_reason = "Entity 'Dog' has 0 relations linked to Alex in HydraDB. Only a cat named Pixel is recorded."
-            verified_answer = "I do not have any recorded information about Alex owning a dog. (The memory graph indicates Alex owns a cat named Pixel)."
-            hallucination_simulation = "Alex's dog is a Golden Retriever named Max who enjoys going on morning runs."
-            related_facts = ["Alex has a pet cat named Pixel who keeps him company while coding (Session 8)."]
-            opencypher = (
-                "MATCH (e:Entity {name: 'Alex'})\n"
-                "OPTIONAL MATCH (e)<-[:MENTIONS]-(f:Fact)-[:MENTIONS]->(target:Entity)\n"
-                "WHERE toLower(target.name) CONTAINS 'dog'\n"
-                "RETURN count(target) AS matching_relations // Returns 0"
-            )
-        elif is_education_query:
-            abstention_reason = "No education or degree entities are linked to Alex across any conversational sessions."
-            verified_answer = "I don't have any recorded information about which university Alex graduated from."
-            hallucination_simulation = "Alex graduated with a B.S. in Computer Science from BUET (Bangladesh University of Engineering and Technology)."
-            related_facts = ["Alex works as Lead AI Systems Architect at a tech startup (Session 20)."]
-            opencypher = (
-                "MATCH (e:Entity {name: 'Alex'})\n"
-                "OPTIONAL MATCH (e)<-[:MENTIONS]-(f:Fact)-[:MENTIONS]->(edu:Entity {type: 'University'})\n"
-                "RETURN count(edu) AS matching_relations // Returns 0"
-            )
-        elif is_car_query:
-            abstention_reason = "Vehicle or commute details were never asserted in any session."
-            verified_answer = "I don't have any recorded memory regarding what car or vehicle Alex drives."
-            hallucination_simulation = "Alex drives a midnight silver Tesla Model 3 to the tech office."
-            related_facts = ["Alex moved to Dhaka and currently lives there (Session 20)."]
-            opencypher = (
-                "MATCH (e:Entity {name: 'Alex'})\n"
-                "OPTIONAL MATCH (e)<-[:MENTIONS]-(f:Fact)\n"
-                "WHERE toLower(f.content) CONTAINS 'car' OR toLower(f.content) CONTAINS 'drive'\n"
-                "RETURN count(f) // Returns 0"
-            )
-        elif is_salary_query:
-            abstention_reason = "Compensation or salary metrics are absent from all ingested session facts."
-            verified_answer = "I do not have information about Alex's salary or compensation."
-            hallucination_simulation = "Alex earned an estimated salary of $120,000 as a software engineer in 2022."
-            related_facts = ["Alex works as a senior software engineer (Session 3)."]
-            opencypher = "MATCH (f:Fact) WHERE toLower(f.content) CONTAINS 'salary' RETURN count(f) // Returns 0"
-        elif is_cat_query:
-            abstention_reason = "Verified: Graph contains active entity 'Pixel' and relationship (:Fact)-[:MENTIONS]->(:Entity {name: 'Pixel'})."
-            verified_answer = "Alex's pet cat is named Pixel."
-            hallucination_simulation = "Alex has a pet cat named Pixel."
-            related_facts = ["Alex has a pet cat named Pixel (Session 8)."]
-            opencypher = (
-                "MATCH (e:Entity {name: 'Alex'})<-[:MENTIONS]-(f:Fact {is_current: true})-[:MENTIONS]->(pet:Entity)\n"
-                "WHERE pet.type = 'Pet' OR toLower(f.content) CONTAINS 'cat'\n"
-                "RETURN f.content, pet.name, f.confidence // Confidence: 0.95"
-            )
+        # Step 5: Answer synthesis & Hallucination simulation contrast
+        related_facts = [f.get("content", "") for f in (facts_to_use or retrieved_facts)[:3]]
+
+        if abstention_triggered:
+            verified_answer = f"I do not have recorded memory to answer this question accurately. ({abstention_reason})"
+            # Real dynamic hallucination simulation for ungrounded LLMs
+            if groq_api_key and not groq_api_key.startswith("gsk_mock_") and groq_api_key.strip():
+                try:
+                    groq_client = Groq(api_key=groq_api_key)
+                    sim_prompt = (
+                        f"Provide a brief, confident, plausible but fabricated 1-sentence answer to: '{question}'. "
+                        f"Act as a naive AI that hallucinates instead of saying 'I don't know'."
+                    )
+                    sim_resp = groq_client.chat.completions.create(
+                        model=settings.groq_model,
+                        messages=[{"role": "user", "content": sim_prompt}],
+                        temperature=0.7,
+                        max_tokens=60,
+                    )
+                    hallucination_simulation = sim_resp.choices[0].message.content.strip()
+                except Exception:
+                    hallucination_simulation = f"A naive model would hallucinate plausible assertions regarding '{question}' without graph grounding."
+            else:
+                hallucination_simulation = f"A naive model without graph grounding would fabricate plausible assumptions for '{question}'."
         else:
-            abstention_reason = f"Confidence score ({final_confidence}) is {'below' if abstention_triggered else 'above'} verification threshold (0.35)."
-            verified_answer = "I don't have enough verified memory to answer this question accurately." if abstention_triggered else f"Answer retrieved from active knowledge graph."
-            hallucination_simulation = f"A standard LLM might fabricate plausible assumptions for '{question}'."
-            related_facts = ["Graph facts were evaluated."]
-            opencypher = "MATCH (e:Entity)<-[:MENTIONS]-(f:Fact {is_current: true}) RETURN f.content, f.confidence"
+            if facts_to_use:
+                top_fact = facts_to_use[0].get("content", "")
+                verified_answer = f"{top_fact}."
+            else:
+                verified_answer = "Verified factual record retrieved from active memory graph."
+            hallucination_simulation = verified_answer
+
+        # Construct inspected OpenCypher query
+        target_name = extracted_entity_name or "Entity"
+        opencypher_inspection = (
+            f"// HydraDB OpenCypher: Scoped Temporal Traversal & Lineage\n"
+            f"MATCH (f:Fact)-[:OCCURRED_IN]->(s:Session {{user_id: '{user_id}'}})\n"
+            f"MATCH (f)-[:MENTIONS]->(e:Entity {{user_id: '{user_id}'}})\n"
+            f"WHERE toLower(e.name) = toLower('{target_name}')\n"
+            f"  AND NOT (f)<-[:SUPERSEDES*1..]-(newer_f:Fact)\n"
+            f"  AND NOT (f)-[:INVALIDATED_BY]->(inv:Session)\n"
+            f"RETURN f.id, f.content, f.confidence, f.created_at\n"
+            f"ORDER BY f.created_at DESC"
+        )
 
         latency_ms = int((time.time() - start_time) * 1000)
 
@@ -878,14 +895,13 @@ class MemoryService:
             "user_id": user_id,
             "latency_ms": latency_ms,
             "extracted_entities": extracted_entities,
-            "subgraph_nodes_found": subgraph_nodes_found,
+            "subgraph_nodes_found": len(retrieved_facts),
             "confidence_breakdown": confidence_breakdown,
+            "graph_evidence": graph_evidence,
             "abstention_triggered": abstention_triggered,
             "abstention_reason": abstention_reason,
             "verified_answer": verified_answer,
             "hallucination_simulation": hallucination_simulation,
             "related_facts_in_graph": related_facts,
-            "opencypher_inspection": opencypher,
+            "opencypher_inspection": opencypher_inspection,
         }
-
-

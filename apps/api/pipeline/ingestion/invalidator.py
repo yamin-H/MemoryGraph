@@ -69,6 +69,8 @@ def detect_invalidations(
     client: Groq,
     hydra: HydraDB,
     current_session_id: str,
+    user_id: str,
+    current_timestamp: str,
     model: str = "llama-3.1-8b-instant",
 ) -> list[dict[str, Any]]:
     """Detect facts that have become stale due to time-bound conditions.
@@ -77,28 +79,54 @@ def detect_invalidations(
         client: Groq client instance
         hydra: HydraDB connection (must be connected)
         current_session_id: ID of the current session (for invalidation record)
+        user_id: Owner of the facts being evaluated
+        current_timestamp: Event time of the ingesting session, not server wall time
         model: Groq model to use
 
     Returns:
         List of invalidation info dicts with fact_id, reason, invalidated_at_session
     """
-    # Get all current facts from HydraDB
     current_facts = []
+
     with hydra._driver.session() as session:
+        # Fetch all facts for user — no AND in WHERE to stay HydraDB-compatible
         result = session.run(
-            "MATCH (f:Fact {is_current: true}) RETURN f.id, f.content, f.created_at"
+            "MATCH (f:Fact)-[:OCCURRED_IN]->(sess:Session {user_id: $user_id}) "
+            "RETURN DISTINCT f.id AS fact_id, f.content AS content, f.created_at AS created_at",
+            user_id=user_id,
         )
         for record in result:
             current_facts.append({
-                "fact_id": record["f.id"],
-                "content": record["f.content"],
-                "created_at": record["f.created_at"],
+                "fact_id": record["fact_id"],
+                "content": record["content"],
+                "created_at": record["created_at"],
             })
+
+        # Fetch superseded fact IDs separately
+        superseded_ids = set()
+        sup_result = session.run(
+            "MATCH (newer:Fact)-[:SUPERSEDES]->(older:Fact) RETURN older.id AS old_id"
+        )
+        for record in sup_result:
+            superseded_ids.add(record["old_id"])
+
+        # Fetch invalidated fact IDs separately
+        invalidated_ids = set()
+        inv_result = session.run(
+            "MATCH (f:Fact)-[:INVALIDATED_BY]->(s:Session) RETURN f.id AS fact_id"
+        )
+        for record in inv_result:
+            invalidated_ids.add(record["fact_id"])
+
+    # Filter in Python — avoids HydraDB AND/OR WHERE limitation
+    current_facts = [
+        f for f in current_facts
+        if f["fact_id"] not in superseded_ids
+        and f["fact_id"] not in invalidated_ids
+    ]
 
     if not current_facts:
         return []
-
-    current_timestamp = datetime.now(timezone.utc).isoformat()
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
         current_timestamp=current_timestamp,
@@ -112,7 +140,6 @@ def detect_invalidations(
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            response_format={"type": "json_object"},
             temperature=0.1,
             max_tokens=1024,
         )
@@ -120,6 +147,15 @@ def detect_invalidations(
         content = response.choices[0].message.content
         if not content:
             return []
+
+        # Strip markdown code blocks if present
+        content = content.strip()
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+
+        content = content.strip()
 
         result = json.loads(content)
         invalidations = result.get("invalidations", [])
@@ -142,13 +178,6 @@ def detect_invalidations(
                     break
 
             if fact_id:
-                # Mark fact as not current
-                with hydra._driver.session() as session:
-                    session.run(
-                        "MATCH (f:Fact {id: $fact_id}) SET f.is_current = false",
-                        fact_id=fact_id,
-                    )
-
                 invalidation_results.append({
                     "fact_id": fact_id,
                     "reason": invalidation.get("reason", "time-bound fact has expired"),
@@ -159,8 +188,8 @@ def detect_invalidations(
 
     except json.JSONDecodeError:
         return []
-    except Exception:
-        return []
+    except Exception as exc:
+        raise RuntimeError(f"Invalidation detection failed: {exc}") from exc
 
 
 def main():
@@ -170,7 +199,6 @@ def main():
 
     from dotenv import load_dotenv
 
-    # Load .env file
     env_path = Path(__file__).parent.parent.parent.parent.parent / ".env"
     load_dotenv(env_path)
 
@@ -187,15 +215,11 @@ def main():
     print("=" * 50)
 
     try:
-        # Clean up first
         with hydra._driver.session() as session:
             session.run("MATCH (n) DELETE n")
         print("Cleared database")
 
-        # Insert a time-bound fact from 3 days ago
-        # "Alex has a meeting tomorrow" - created 3 days ago, so the meeting is now in the past
         from datetime import timedelta
-
         three_days_ago = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
 
         with hydra._driver.session() as session:
@@ -203,32 +227,30 @@ def main():
                 "MERGE (f:Fact {id: 500, content: 'Alex has a meeting tomorrow', confidence: 0.9, is_current: true, created_at: $created_at})-[:MENTIONS]->(e:Entity {id: 5, name: 'Alex', type: 'person'})",
                 created_at=three_days_ago,
             )
-        print(f"Inserted old fact: 'Alex has a meeting tomorrow'")
-        print(f"  Created at: {three_days_ago}")
-        print()
+        print("Inserted old fact: 'Alex has a meeting tomorrow'")
 
-        # Also insert a permanent fact that should NOT be invalidated
         with hydra._driver.session() as session:
             session.run(
                 "MERGE (f:Fact {id: 501, content: 'Alex works as a software engineer', confidence: 0.95, is_current: true, created_at: $created_at})-[:MENTIONS]->(e:Entity {id: 5, name: 'Alex', type: 'person'})",
                 created_at=three_days_ago,
             )
-        print(f"Inserted permanent fact: 'Alex works as a software engineer'")
-        print(f"  (This should NOT be invalidated)")
-        print()
+        print("Inserted permanent fact: 'Alex works as a software engineer'")
 
-        # Detect invalidations
-        invalidations = detect_invalidations(client, hydra, "session-test-001")
+        invalidations = detect_invalidations(
+            client,
+            hydra,
+            "session-test-001",
+            user_id="alex-user",
+            current_timestamp=datetime.now(timezone.utc).isoformat(),
+        )
 
-        print(f"Detected {len(invalidations)} invalidation(s):")
+        print(f"\nDetected {len(invalidations)} invalidation(s):")
         for inv in invalidations:
             print(f"  Fact ID: {inv['fact_id']}")
             print(f"  Reason: {inv['reason']}")
             print(f"  Invalidated at: {inv['invalidated_at_session']}")
-            print()
 
-        # Verify facts status
-        print("Verification - Facts status:")
+        print("\nVerification - Facts status:")
         with hydra._driver.session() as session:
             result = session.run(
                 "MATCH (f:Fact) RETURN f.id, f.content, f.is_current ORDER BY f.id"
@@ -239,8 +261,7 @@ def main():
 
     finally:
         hydra.close()
-        print()
-        print("Connection closed")
+        print("\nConnection closed")
 
 
 if __name__ == "__main__":

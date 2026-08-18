@@ -4,23 +4,17 @@ import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react';
 import { api } from '@/lib/api';
 import { Message, QueryResponse } from '@/lib/types';
 import { ConfidenceScore } from './ConfidenceScore';
-import { Send, Loader2, Bot, User, Sparkles, AlertTriangle, Clock, Terminal, ChevronRight } from 'lucide-react';
+import { Send, Loader2, Bot, User, AlertTriangle, Clock, Terminal } from 'lucide-react';
 import { addToast } from '@/lib/hooks';
 
 interface ChatInterfaceProps {
   onAnswerChange?: (answer: QueryResponse | null) => void;
 }
 
-const suggestedQueries = [
-  'What facts do you remember about Alex?',
-  'Has any pet or work information changed over time?',
-  'What were the main topics discussed across sessions?',
-  'Can you synthesize what is known about the user profile?',
-];
-
 export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [userId, setUserId] = useState('user');
   const [loading, setLoading] = useState(false);
   const [activeReasoningIdx, setActiveReasoningIdx] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -58,7 +52,7 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
       setLoading(true);
 
       try {
-        const response = await api.queryMemory(query, 'user');
+        const response = await api.queryMemory(query, userId.trim() || 'user');
 
         const assistantMessage: Message = {
           role: 'assistant',
@@ -117,22 +111,6 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
               Temporal knowledge graph memory. Query across multi-turn sessions with automated confidence estimation and fact supersedence.
             </p>
 
-            <div className="w-full max-w-lg space-y-2.5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2 font-mono">Suggested Queries</p>
-              {suggestedQueries.map((q, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSendMessage(q)}
-                  className="w-full text-left p-3.5 rounded-2xl glass-card hover:border-amber-500/40 text-xs text-slate-700 dark:text-slate-300 hover:text-amber-700 dark:hover:text-amber-300 transition-all flex items-center justify-between group cursor-pointer shadow-sm"
-                >
-                  <span className="flex items-center gap-2.5 font-medium">
-                    <Sparkles size={14} className="text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform" />
-                    {q}
-                  </span>
-                  <ChevronRight size={14} className="text-slate-400 dark:text-slate-600 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
@@ -261,6 +239,13 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
               className="input-field min-h-[46px] max-h-[140px] resize-none py-3 pr-10 text-xs sm:text-sm shadow-sm"
             />
           </div>
+          <input
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            aria-label="User ID"
+            placeholder="User ID"
+            className="input-field w-28 h-[46px] text-xs font-mono"
+          />
           <button
             onClick={() => handleSendMessage()}
             disabled={loading || !input.trim()}

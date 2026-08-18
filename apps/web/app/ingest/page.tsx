@@ -3,50 +3,13 @@
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { addToast } from '@/lib/hooks';
-import { Upload, Plus, Trash2, Loader2, Sparkles, CheckCircle2, FileJson } from 'lucide-react';
+import { Upload, Plus, Trash2, Loader2, CheckCircle2, FileJson } from 'lucide-react';
 
 interface MessageRow {
   id: string;
   role: 'user' | 'assistant';
   content: string;
 }
-
-const sampleTemplates = [
-  {
-    name: 'Session 1: Initial Intro',
-    session_id: 'alex-session-1',
-    user_id: 'alex',
-    started_at: '2024-01-10T10:00:00Z',
-    messages: [
-      { role: 'user', content: 'Hi! My name is Alex. I am a software engineer working at TechCorp in San Francisco.' },
-      { role: 'assistant', content: 'Nice to meet you Alex! How is San Francisco treating you?' },
-      { role: 'user', content: 'I live in a small apartment with my golden retriever puppy named Mochi.' },
-      { role: 'assistant', content: 'Golden retrievers are wonderful pets! Mochi is an adorable name.' },
-    ],
-  },
-  {
-    name: 'Session 2: Relocation & Pet Update',
-    session_id: 'alex-session-2',
-    user_id: 'alex',
-    started_at: '2024-01-20T14:30:00Z',
-    messages: [
-      { role: 'user', content: 'Quick update: I actually moved from San Francisco to Seattle last weekend for a new job at CloudScale.' },
-      { role: 'assistant', content: 'Congratulations on the new job at CloudScale and the move to Seattle!' },
-      { role: 'user', content: 'Also Mochi now has a cat sibling named Pixel who is 1 year old.' },
-      { role: 'assistant', content: 'How are Mochi and Pixel getting along in Seattle?' },
-    ],
-  },
-  {
-    name: 'Session 3: Project Work',
-    session_id: 'alex-session-3',
-    user_id: 'alex',
-    started_at: '2024-02-05T09:15:00Z',
-    messages: [
-      { role: 'user', content: 'I am currently designing a graph database architecture using HydraDB.' },
-      { role: 'assistant', content: 'HydraDB offers great performance for graph-native agent workflows!' },
-    ],
-  },
-];
 
 export function IngestPage() {
   const [sessionId, setSessionId] = useState('');
@@ -57,35 +20,7 @@ export function IngestPage() {
     { id: '2', role: 'assistant', content: '' },
   ]);
   const [submitting, setSubmitting] = useState(false);
-  const [seedingBatch, setSeedingBatch] = useState(false);
   const [lastIngestResult, setLastIngestResult] = useState<any>(null);
-
-  const handleSeedFullStory = async () => {
-    setSeedingBatch(true);
-    try {
-      const resp = await api.seedDemoDataset();
-      setLastIngestResult(resp);
-      addToast('success', 'Full Dataset Seeded', resp.message || 'Seeded 35 sessions into HydraDB.');
-    } catch (err: any) {
-      addToast('error', 'Seeding Failed', err?.message || 'Could not seed batch dataset.');
-    } finally {
-      setSeedingBatch(false);
-    }
-  };
-
-  const handleLoadSample = (tpl: (typeof sampleTemplates)[0]) => {
-    setSessionId(tpl.session_id);
-    setUserId(tpl.user_id);
-    setStartedAt(tpl.started_at);
-    setMessages(
-      tpl.messages.map((m, i) => ({
-        id: String(i + 1),
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      }))
-    );
-    addToast('info', 'Template Loaded', `Loaded "${tpl.name}" into form.`);
-  };
 
   const addMessage = () => {
     const nextRole =
@@ -162,53 +97,6 @@ export function IngestPage() {
         <p className="animate-fade-in-up stagger-3 text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg mx-auto font-medium">
           Feed multi-turn dialogue into the extraction pipeline to create Session anchors, Fact nodes, Entity mappings, and automatic SUPERSEDES relations.
         </p>
-      </div>
-
-      {/* 1-Click Story Seed Banner */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-indigo-500/10 border border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg animate-fade-in-up stagger-4">
-        <div className="space-y-1 text-center sm:text-left">
-          <div className="flex items-center justify-center sm:justify-start gap-2 text-amber-600 dark:text-amber-400 font-bold text-sm">
-            <Sparkles size={16} />
-            <span>Seed 35-Session Alex Story Arc</span>
-          </div>
-          <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md">
-            Automatically populate 35 multi-turn dialogues across 6 months with 115 facts and 67 <code className="text-rose-500 font-mono font-bold">SUPERSEDES</code> edges into HydraDB.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleSeedFullStory}
-          disabled={seedingBatch}
-          className="btn-primary text-xs px-5 py-2.5 flex-shrink-0 cursor-pointer shadow-md whitespace-nowrap"
-        >
-          {seedingBatch ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-          <span>{seedingBatch ? 'Seeding 35 Sessions...' : '1-Click Seed HydraDB'}</span>
-        </button>
-      </div>
-
-      {/* Preset Templates */}
-      <div className="space-y-3 animate-fade-in-up stagger-4">
-        <div className="section-label">
-          <Sparkles size={13} className="text-amber-500" />
-          <span>Preset Individual Sessions</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {sampleTemplates.map((tpl, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => handleLoadSample(tpl)}
-              className="feature-card text-left group cursor-pointer shadow-md hover:border-amber-500/40 transition-all"
-            >
-              <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors duration-300 font-heading">
-                {tpl.name}
-              </p>
-              <p className="text-[11px] text-slate-500 font-mono mt-1 font-semibold">
-                {tpl.session_id} · {tpl.messages.length} messages
-              </p>
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Ingest Form */}

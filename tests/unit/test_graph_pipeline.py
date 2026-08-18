@@ -111,30 +111,29 @@ class TestIngestionPipeline:
 
     @pytest.mark.asyncio
     async def test_extract_facts_node_no_api_key(self):
-        """Test extract_facts_node returns error when GROQ_API_KEY missing."""
+        """Test extract_facts_node gracefully uses rule-based fallback when GROQ_API_KEY missing."""
         from apps.api.pipeline.graph import extract_facts_node
 
-        state = {"session": {"session_id": "test", "messages": []}}
+        state = {"session": {"session_id": "test", "messages": [{"role": "user", "content": "I live in Berlin."}]}}
 
         with patch.dict("os.environ", {}, clear=True):
             result = extract_facts_node(state)
 
-        assert result["error"] == "GROQ_API_KEY not set"
-        assert result["failed_step"] == "extract_facts"
+        assert "facts" in result
+        assert isinstance(result["facts"], list)
 
     @pytest.mark.asyncio
     async def test_summarize_session_node_no_api_key(self):
-        """Test summarize_session_node returns error when GROQ_API_KEY missing."""
+        """Test summarize_session_node gracefully returns rule-based summary when GROQ_API_KEY missing."""
         from apps.api.pipeline.graph import summarize_session_node
 
         state = {"session": {"session_id": "test", "messages": [{"role": "user", "content": "Hello"}]}}
 
-        # Mock os.environ.get to return empty string for GROQ_API_KEY
         with patch("apps.api.pipeline.graph.os.environ.get", return_value=""):
             result = summarize_session_node(state)
 
-        assert result["error"] == "GROQ_API_KEY not set"
-        assert result["failed_step"] == "summarize_session"
+        assert "summary" in result
+        assert result["summary"]["topic"] == "General Dialogue"
 
     @pytest.mark.asyncio
     async def test_resolve_entities_node_placeholder(self):
@@ -264,7 +263,11 @@ class TestIngestionPipeline:
             }
         }
 
-        result = score_confidence_node(state)
+        with patch("apps.api.pipeline.graph.HydraDB") as mock_hydra_cls:
+            mock_hydra = MagicMock()
+            mock_hydra_cls.return_value = mock_hydra
+            with patch("apps.api.pipeline.graph.get_confidence_evidence", return_value={"Alex": {"in_degree": 2, "out_degree": 1}}):
+                result = score_confidence_node(state)
 
         assert "confidence_result" in result
         assert "score" in result["confidence_result"]

@@ -19,41 +19,9 @@ import {
 } from 'lucide-react';
 import { CodeViewer } from '@/components/CodeViewer';
 
-interface PresetScenario {
-  id: string;
-  category: 'supersedence' | 'abstention' | 'multihop';
-  title: string;
-  emoji: string;
-  question: string;
-}
-
-const PRESET_SCENARIOS: PresetScenario[] = [
-  {
-    id: 'location-update',
-    category: 'supersedence',
-    title: 'Location Update',
-    emoji: '🔄',
-    question: 'Where does Alex live?',
-  },
-  {
-    id: 'unseen-pet',
-    category: 'abstention',
-    title: 'Honest Abstention',
-    emoji: '🛡️',
-    question: "What is the name of Alex's pet dog?",
-  },
-  {
-    id: 'career-knowledge',
-    category: 'multihop',
-    title: 'Career Progression',
-    emoji: '🔗',
-    question: "What is Alex's current job role and who does he live with?",
-  },
-];
-
 export default function ArenaPage() {
-  const [selectedScenario, setSelectedScenario] = useState<PresetScenario>(PRESET_SCENARIOS[0]);
-  const [customQuestion, setCustomQuestion] = useState(PRESET_SCENARIOS[0].question);
+  const [customQuestion, setCustomQuestion] = useState('');
+  const [userId, setUserId] = useState('user');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CompareResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,22 +35,13 @@ export default function ArenaPage() {
     setError(null);
     setResult(null);
     try {
-      const resp = await api.compareSystems(queryText, 'alex-user');
+      const resp = await api.compareSystems(queryText, userId.trim() || 'user');
       setResult(resp);
     } catch (err: any) {
       setError(err?.message || 'Failed to execute side-by-side comparison');
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    runComparison(selectedScenario.question);
-  }, [selectedScenario]);
-
-  const handleSelectScenario = (scenario: PresetScenario) => {
-    setSelectedScenario(scenario);
-    setCustomQuestion(scenario.question);
   };
 
   const handleCustomSubmit = (e: React.FormEvent) => {
@@ -257,33 +216,6 @@ export default function ArenaPage() {
           </p>
         </div>
 
-        {/* ── Scenario Tabs ── */}
-        <div className={`${mounted ? 'fu d4' : 'opacity-0'} flex flex-wrap items-center justify-center gap-2.5`}>
-          {PRESET_SCENARIOS.map((sc) => {
-            const isSelected = selectedScenario.id === sc.id;
-            return (
-              <button
-                key={sc.id}
-                onClick={() => handleSelectScenario(sc)}
-                className={`scenario-btn px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 border cursor-pointer ${
-                  isSelected
-                    ? 'bg-amber-500/10 border-amber-500/35 text-amber-300 shadow-[0_0_20px_-6px_rgba(245,158,11,0.4)]'
-                    : 'bg-white/[0.02] border-white/[0.06] text-slate-500 hover:text-slate-200 hover:border-white/[0.12] hover:bg-white/[0.05]'
-                }`}
-              >
-                {isSelected && (
-                  <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400/50 to-transparent" />
-                )}
-                <span className="text-sm">{sc.emoji}</span>
-                <span>{sc.title}</span>
-                {isSelected && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.8)]" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
         {/* ── Query Input ── */}
         <form
           onSubmit={handleCustomSubmit}
@@ -299,6 +231,13 @@ export default function ArenaPage() {
               className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-white text-xs sm:text-sm placeholder:text-slate-600 focus:outline-none focus:border-amber-500/40 focus:bg-white/[0.05] focus:shadow-[0_0_20px_-6px_rgba(245,158,11,0.3)] transition-all duration-300 font-mono"
             />
           </div>
+          <input
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            aria-label="User ID"
+            placeholder="User ID"
+            className="w-28 px-3 py-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-white text-xs font-mono"
+          />
           <button
             type="submit"
             disabled={loading || !customQuestion.trim()}

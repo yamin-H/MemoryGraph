@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google';
 import { AppShell } from '@/components/AppShell';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import { AnimatedBackground } from '@/components/AnimatedBackground';
 import './globals.css';
 
 const inter = Inter({
@@ -68,7 +67,6 @@ export default function RootLayout({
 
         <ThemeProvider>
           <div className="relative z-10 h-screen overflow-hidden">
-            <AnimatedBackground/>
             <AppShell>{children}</AppShell>
           </div>
         </ThemeProvider>

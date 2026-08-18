@@ -13,7 +13,11 @@ class TestInvalidator:
         from apps.api.pipeline.ingestion.invalidator import detect_invalidations
 
         invalidations = detect_invalidations(
-            mock_groq_invalidation, mock_hydradb, "alex-session-3"
+            mock_groq_invalidation,
+            mock_hydradb,
+            "alex-session-3",
+            user_id="alex",
+            current_timestamp="2024-03-10T11:00:00Z",
         )
 
         assert isinstance(invalidations, list)
@@ -32,7 +36,13 @@ class TestInvalidator:
         mock_response.choices[0].message.content = '{"invalidations": []}'
         groq_mock.chat.completions.create = MagicMock(return_value=mock_response)
 
-        invalidations = detect_invalidations(groq_mock, mock_hydradb, "alex-session-5")
+        invalidations = detect_invalidations(
+            groq_mock,
+            mock_hydradb,
+            "alex-session-5",
+            user_id="alex",
+            current_timestamp="2024-03-10T11:00:00Z",
+        )
 
         assert invalidations == []
 

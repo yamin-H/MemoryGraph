@@ -142,9 +142,9 @@ def test_overwrite_supersession_edge_created(hydradb_client):
     with hydradb_client._driver.session() as db_session:
         result = db_session.run("""
             MATCH (f1:Fact)-[:SUPERSEDES]->(f2:Fact)-[:SUPERSEDES]->(f3:Fact)
-            WHERE f1.content CONTAINS 'City A'
+            WHERE f1.content CONTAINS 'City C'
               AND f2.content CONTAINS 'City B'
-              AND f3.content CONTAINS 'City C'
+              AND f3.content CONTAINS 'City A'
             RETURN count(*) AS c
         """)
         assert result.single()["c"] >= 1

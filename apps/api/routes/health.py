@@ -3,7 +3,7 @@
 import os
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from groq import Groq
 import redis.asyncio as redis
 
@@ -19,12 +19,8 @@ async def get_redis():
 
 
 @router.get("/health")
-async def health_check() -> dict[str, Any]:
-    """Check health of all services.
-
-    Returns:
-        Health status and statistics
-    """
+async def health_check(request: Request) -> dict[str, Any]:
+    """Check health of all services."""
     status = {
         "api": "ok",
         "hydradb": "ok",
@@ -38,45 +34,33 @@ async def health_check() -> dict[str, Any]:
     avg_query_latency_ms = 0.0
     hydradb_details: dict[str, Any] = HydraDB.engine_info()
 
-    # Check HydraDB & Fetch graph counts with single session
-    hydra_db = None
-    created_own = False
+    # Check HydraDB — use shared client from app.state
+    hydra_db = getattr(request.app.state, "hydra", None)
+
     try:
-        try:
-            from main import hydra_client
-            if hydra_client and hydra_client.is_connected:
-                hydra_db = hydra_client
-        except Exception:
-            pass
+        if hydra_db and hydra_db.is_connected:
+            hydradb_details = hydra_db.health_details()
+            with hydra_db._driver.session() as session:
+                facts_stored = session.run(
+                    "MATCH (f:Fact) RETURN count(*) AS cnt"
+                ).single()["cnt"] or 0
 
-        if hydra_db is None:
-            hydra_db = HydraDB()
-            hydra_db.connect()
-            created_own = True
+                sessions_ingested = session.run(
+                    "MATCH (s:Session) RETURN count(*) AS cnt"
+                ).single()["cnt"] or 0
 
-        hydradb_details = hydra_db.health_details()
-
-        with hydra_db._driver.session() as session:
-            f_res = session.run("MATCH (f:Fact) RETURN count(f)")
-            facts_stored = f_res.single()[0] or 0
-
-            s_res = session.run("MATCH (s:Session) RETURN count(s)")
-            sessions_ingested = s_res.single()[0] or 0
-
-            e_res = session.run("MATCH (e:Entity) RETURN count(e)")
-            entities_tracked = e_res.single()[0] or 0
+                entities_tracked = session.run(
+                    "MATCH (e:Entity) RETURN count(*) AS cnt"
+                ).single()["cnt"] or 0
+        else:
+            status["hydradb"] = "error"
+            hydradb_details["connected"] = False
+            hydradb_details["error"] = "HydraDB client not available on app.state"
     except Exception as e:
         print(f"HydraDB health check error: {e}")
         status["hydradb"] = "error"
-        status["hydradb_error"] = str(e)
         hydradb_details["connected"] = False
         hydradb_details["error"] = str(e)
-    finally:
-        if hydra_db and created_own:
-            try:
-                hydra_db.close()
-            except Exception:
-                pass
 
     # Check Redis
     redis_client = None
@@ -114,8 +98,6 @@ async def health_check() -> dict[str, Any]:
         "status": status.get("hydradb", "ok"),
         **hydradb_details,
     }
-    if "hydradb_error" in status:
-        hydra_service["error"] = status["hydradb_error"]
 
     return {
         "status": "ok" if all(v == "ok" for k, v in status.items() if not k.endswith("_error")) else "degraded",

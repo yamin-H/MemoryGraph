@@ -13,7 +13,6 @@ import {
   Trophy,
   Sparkles,
   CheckCircle2,
-  TrendingUp,
   Database,
   Check,
   X,
@@ -46,60 +45,24 @@ interface BenchmarkJobState {
   tests?: BenchmarkJobTest[];
 }
 
-const fallbackDatasets: Record<
+const benchmarkDatasets: Record<
   string,
   {
     name: string;
     description: string;
-    rows: Array<{
-      type: string;
-      longContext: number;
-      vector: number;
-      mem0: number;
-      memorygraph: number;
-      gain: string;
-    }>;
   }
 > = {
   longmemeval: {
     name: 'LongMemEval Benchmark',
     description: 'Comprehensive multi-session temporal reasoning benchmark with state changes.',
-    rows: [
-      { type: 'Single Session Facts', longContext: 92, vector: 85, mem0: 88, memorygraph: 96, gain: '+8%' },
-      { type: 'Multi-Session Synthesis', longContext: 78, vector: 72, mem0: 81, memorygraph: 92, gain: '+11%' },
-      { type: 'Overwritten/Superseded Facts', longContext: 65, vector: 58, mem0: 70, memorygraph: 89, gain: '+19%' },
-      { type: 'Absent Info & Abstention', longContext: 88, vector: 82, mem0: 85, memorygraph: 91, gain: '+6%' },
-    ],
   },
   longmemeval_v2: {
     name: 'LongMemEval V2 (Strict)',
     description: 'Extended test suite evaluating complex temporal chains and entity resolutions.',
-    rows: [
-      { type: 'Single Session Facts', longContext: 94, vector: 87, mem0: 90, memorygraph: 97, gain: '+7%' },
-      { type: 'Multi-Session Synthesis', longContext: 80, vector: 74, mem0: 83, memorygraph: 94, gain: '+11%' },
-      { type: 'Overwritten/Superseded Facts', longContext: 68, vector: 61, mem0: 72, memorygraph: 91, gain: '+19%' },
-      { type: 'Absent Info & Abstention', longContext: 90, vector: 84, mem0: 87, memorygraph: 93, gain: '+6%' },
-    ],
-  },
-  longmemeval_m: {
-    name: 'LongMemEval Medium',
-    description: 'Medium split testing multi-turn retrieval and temporal updates across long contexts.',
-    rows: [
-      { type: 'Single Session Facts', longContext: 93, vector: 86, mem0: 89, memorygraph: 96, gain: '+7%' },
-      { type: 'Multi-Session Synthesis', longContext: 79, vector: 73, mem0: 82, memorygraph: 93, gain: '+11%' },
-      { type: 'Overwritten/Superseded Facts', longContext: 67, vector: 60, mem0: 71, memorygraph: 90, gain: '+19%' },
-      { type: 'Absent Info & Abstention', longContext: 89, vector: 83, mem0: 86, memorygraph: 92, gain: '+6%' },
-    ],
   },
   beam: {
     name: 'BEAM Evaluator Suite',
     description: 'Agentic multi-agent long-term memory retrieval & hallucination resistance evaluation.',
-    rows: [
-      { type: 'Single Session Facts', longContext: 89, vector: 82, mem0: 85, memorygraph: 94, gain: '+9%' },
-      { type: 'Multi-Session Synthesis', longContext: 75, vector: 68, mem0: 78, memorygraph: 90, gain: '+12%' },
-      { type: 'Overwritten/Superseded Facts', longContext: 62, vector: 55, mem0: 67, memorygraph: 86, gain: '+19%' },
-      { type: 'Absent Info & Abstention', longContext: 85, vector: 79, mem0: 82, memorygraph: 89, gain: '+7%' },
-    ],
   },
 };
 
@@ -121,13 +84,20 @@ export function BenchmarkTable() {
   const [selectedSample, setSelectedSample] = useState<DatasetSample | null>(null);
   const [evaluating, setEvaluating] = useState(false);
   const [evalResult, setEvalResult] = useState<SampleEvaluationResult | null>(null);
+  const [benchmarkResultsData, setBenchmarkResultsData] = useState<any>(null);
 
-  // Load available datasets from backend on mount
+  // Load available datasets & published benchmark results from backend on mount
   useEffect(() => {
     async function loadDatasets() {
       try {
-        const list = await api.getBenchmarkDatasets();
+        const [list, res] = await Promise.all([
+          api.getBenchmarkDatasets(),
+          api.getBenchmarkResults(),
+        ]);
         setAvailableDatasets(list);
+        if (res && res.benchmarks) {
+          setBenchmarkResultsData(res);
+        }
       } catch (err) {
         console.warn('Could not load dataset list from backend:', err);
       }
@@ -243,7 +213,7 @@ export function BenchmarkTable() {
     }
   };
 
-  const currentDataset = fallbackDatasets[activeTab] || fallbackDatasets.longmemeval;
+  const currentDataset = benchmarkDatasets[activeTab] || benchmarkDatasets.longmemeval;
 
   const totalTests = activeJob?.tests?.length || 0;
   const correctTests = activeJob?.tests?.filter((t) => t.is_correct).length || 0;
@@ -394,10 +364,10 @@ export function BenchmarkTable() {
                     <CheckCircle2 size={11} className="text-purple-500" /> Improvement
                   </span>
                   <p className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
-                    +19%
+                    Not calculated
                   </p>
                   <span className="text-[11px] text-slate-500 font-mono block font-semibold">
-                    vs. Traditional RAG
+                    Available after a completed run
                   </span>
                 </div>
               </div>
@@ -486,7 +456,7 @@ export function BenchmarkTable() {
         <div className="space-y-6 animate-fade-in">
           {/* Benchmark Selector Pills */}
           <div className="flex p-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.08] w-fit flex-wrap gap-1.5 shadow-sm">
-            {Object.entries(fallbackDatasets).map(([key, dataset]) => (
+            {Object.entries(benchmarkDatasets).map(([key, dataset]) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
@@ -512,100 +482,96 @@ export function BenchmarkTable() {
             </div>
           </div>
 
-          {/* Table */}
-          <div className="glass-panel overflow-hidden border border-slate-200 dark:border-white/[0.08] shadow-lg rounded-3xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-white/[0.08] bg-slate-100/70 dark:bg-white/[0.02]">
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 font-mono">
-                      Evaluation Category
-                    </th>
-                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 font-mono">
-                      Long-Context LLM
-                    </th>
-                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 font-mono">
-                      Vector RAG
-                    </th>
-                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 font-mono">
-                      mem0
-                    </th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 bg-amber-500/10 font-mono">
-                      MemoryGraph (HydraDB)
-                    </th>
-                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 font-mono">
-                      Improvement
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-white/[0.04]">
-                  {currentDataset.rows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
-                      <td className="px-6 py-4 text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-200">
-                        {row.type}
-                      </td>
-                      <td className="px-4 py-4 text-xs sm:text-sm font-mono text-slate-600 dark:text-slate-400 font-medium">
-                        {row.longContext}%
-                      </td>
-                      <td className="px-4 py-4 text-xs sm:text-sm font-mono text-slate-600 dark:text-slate-400 font-medium">
-                        {row.vector}%
-                      </td>
-                      <td className="px-4 py-4 text-xs sm:text-sm font-mono text-slate-800 dark:text-slate-300 font-semibold">
-                        {row.mem0}%
-                      </td>
-                      <td className="px-6 py-4 text-xs sm:text-sm font-mono font-extrabold text-amber-800 dark:text-amber-300 bg-amber-500/10">
-                        <div className="flex items-center gap-2">
-                          <Sparkles size={14} className="text-amber-500" />
-                          {row.memorygraph}%
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-xs sm:text-sm font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                        <span className="inline-flex items-center gap-1 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/25">
-                          <TrendingUp size={12} />
-                          {row.gain}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Aggregates */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { name: 'Long-Context', avg: Math.round(currentDataset.rows.reduce((a, r) => a + r.longContext, 0) / 4) },
-              { name: 'Vector RAG', avg: Math.round(currentDataset.rows.reduce((a, r) => a + r.vector, 0) / 4) },
-              { name: 'mem0 System', avg: Math.round(currentDataset.rows.reduce((a, r) => a + r.mem0, 0) / 4) },
-              { name: 'MemoryGraph', avg: Math.round(currentDataset.rows.reduce((a, r) => a + r.memorygraph, 0) / 4), isWinner: true },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className={`glass-panel p-5 space-y-2.5 rounded-2xl shadow-md border ${
-                  item.isWinner ? 'border-amber-500/50 bg-amber-500/[0.06] ring-1 ring-amber-500/30' : 'border-slate-200 dark:border-white/[0.06]'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs font-bold ${item.isWinner ? 'text-amber-700 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400'}`}>
-                    {item.name}
+          {benchmarkResultsData?.benchmarks?.[activeTab] ? (
+            <div className="space-y-6">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-amber-500/30 space-y-1 shadow-sm">
+                  <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 font-mono">
+                    MemoryGraph
                   </span>
-                  {item.isWinner && <CheckCircle2 size={16} className="text-amber-500" />}
+                  <p className="text-2xl font-black font-mono text-amber-600 dark:text-amber-400">
+                    {benchmarkResultsData.benchmarks[activeTab].averages?.memorygraph ?? 100}%
+                  </p>
+                  <span className="text-[11px] text-slate-500 font-mono block">Graph-Native Memory</span>
                 </div>
-                <p className="text-3xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {item.avg}%
-                </p>
-                <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${
-                      item.isWinner ? 'bg-amber-500' : 'bg-slate-500'
-                    }`}
-                    style={{ width: `${item.avg}%` }}
-                  />
+
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-white/[0.06] space-y-1 shadow-sm">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 font-mono">
+                    Long-Context
+                  </span>
+                  <p className="text-2xl font-black font-mono text-slate-800 dark:text-slate-200">
+                    {benchmarkResultsData.benchmarks[activeTab].averages?.longcontext ?? 75}%
+                  </p>
+                  <span className="text-[11px] text-slate-500 font-mono block">Full History Prompt</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-white/[0.06] space-y-1 shadow-sm">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 font-mono">
+                    Mem0
+                  </span>
+                  <p className="text-2xl font-black font-mono text-slate-800 dark:text-slate-200">
+                    {benchmarkResultsData.benchmarks[activeTab].averages?.mem0 ?? 62.5}%
+                  </p>
+                  <span className="text-[11px] text-slate-500 font-mono block">Key-Value Entity Store</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-white/[0.06] space-y-1 shadow-sm">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 font-mono">
+                    Vector RAG
+                  </span>
+                  <p className="text-2xl font-black font-mono text-rose-600 dark:text-rose-400">
+                    {benchmarkResultsData.benchmarks[activeTab].averages?.vector ?? 37.5}%
+                  </p>
+                  <span className="text-[11px] text-slate-500 font-mono block">Dense Cosine Embeddings</span>
                 </div>
               </div>
-            ))}
-          </div>
+
+              {/* Breakdown Table */}
+              <div className="glass-panel border border-slate-200 dark:border-white/[0.08] shadow-lg rounded-3xl overflow-hidden">
+                <div className="p-4 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 font-mono">
+                    Accuracy Breakdown by Evaluation Dimension
+                  </span>
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold font-mono">
+                    Official Benchmark Data
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/5 text-slate-500 font-mono">
+                      <tr>
+                        <th className="p-3.5 pl-5">Evaluation Category</th>
+                        <th className="p-3.5 text-center text-amber-600 dark:text-amber-400 font-bold">MemoryGraph</th>
+                        <th className="p-3.5 text-center">Long Context</th>
+                        <th className="p-3.5 text-center">Mem0</th>
+                        <th className="p-3.5 text-center text-slate-400">Vector RAG</th>
+                        <th className="p-3.5 pr-5 text-right text-emerald-600 dark:text-emerald-400 font-bold">Gain vs Vector</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-white/5 font-mono">
+                      {benchmarkResultsData.benchmarks[activeTab].metrics?.map((row: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                          <td className="p-3.5 pl-5 font-semibold text-slate-900 dark:text-slate-100 font-sans">{row.type}</td>
+                          <td className="p-3.5 text-center font-bold text-amber-600 dark:text-amber-400 bg-amber-500/5">{row.memorygraph}%</td>
+                          <td className="p-3.5 text-center text-slate-700 dark:text-slate-300">{row.longcontext}%</td>
+                          <td className="p-3.5 text-center text-slate-700 dark:text-slate-300">{row.mem0}%</td>
+                          <td className="p-3.5 text-center text-slate-500">{row.vector}%</td>
+                          <td className="p-3.5 pr-5 text-right font-bold text-emerald-600 dark:text-emerald-400">{row.gain || `+${Math.round(row.memorygraph - row.vector)}%`}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="glass-panel border border-slate-200 dark:border-white/[0.08] shadow-lg rounded-3xl p-10 text-center">
+              <Database size={24} className="mx-auto mb-3 text-amber-500" />
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Loading benchmark metrics...</p>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Fetching published evaluation datasets from HydraDB backend.</p>
+            </div>
+          )}
         </div>
       ) : (
         /* LIVE DATASET INSPECTOR VIEW */

@@ -120,7 +120,7 @@ class TestParser:
         assert result["keywords"] == []
 
     def test_parse_question_json_decode_error(self, groq_mock):
-        """Test parsing handles JSON decode error gracefully."""
+        """Test parsing handles JSON decode error gracefully with rule-based fallback."""
         from apps.api.pipeline.retrieval.parser import parse_question
 
         mock_response = MagicMock()
@@ -130,9 +130,9 @@ class TestParser:
 
         result = parse_question(groq_mock, "Where does Alex live?")
 
-        assert result["entity_name"] is None
-        assert result["question_type"] == "absent_information"
-        assert result["keywords"] == []
+        assert result["entity_name"] == "Alex"
+        assert result["question_type"] == "current_fact"
+        assert any("live" in kw.lower() or "location" in kw.lower() for kw in result["keywords"])
 
     def test_parse_question_empty_response(self, groq_mock):
         """Test parsing handles empty response gracefully with a real fallback entity match."""
@@ -150,16 +150,16 @@ class TestParser:
         assert any("live" in kw.lower() or "location" in kw.lower() for kw in result["keywords"])
 
     def test_parse_question_api_exception(self, groq_mock):
-        """Test parsing handles API exception gracefully."""
+        """Test parsing handles API exception gracefully with rule-based fallback."""
         from apps.api.pipeline.retrieval.parser import parse_question
 
         groq_mock.chat.completions.create.side_effect = Exception("API error")
 
         result = parse_question(groq_mock, "Where does Alex live?")
 
-        assert result["entity_name"] is None
-        assert result["question_type"] == "absent_information"
-        assert result["keywords"] == []
+        assert result["entity_name"] == "Alex"
+        assert result["question_type"] == "current_fact"
+        assert any("live" in kw.lower() or "location" in kw.lower() for kw in result["keywords"])
 
     def test_parse_question_original_question_preserved(self, mock_groq_parser):
         """Test that original_question is preserved in result."""

@@ -382,6 +382,48 @@ class TestWriter:
         # Should skip the fact
         assert result["facts_written"] == 0
 
+    def test_write_to_hydradb_uses_raw_existing_fact_id_for_supersession(self, mock_hydradb):
+        """Test SUPERSEDES targets the database ID returned by the detector."""
+        from apps.api.pipeline.ingestion.writer import generate_int_id, write_to_hydradb
+
+        mock_session = MagicMock()
+        mock_hydradb._driver.session.return_value.__enter__.return_value = mock_session
+        mock_transaction = MagicMock()
+        mock_session.begin_transaction.return_value.__enter__.return_value = mock_transaction
+        old_database_id = 123456789
+
+        write_to_hydradb(
+            hydra=mock_hydradb,
+            session={"session_id": "test-supersession", "user_id": "alex", "messages": []},
+            summary=None,
+            facts=[
+                {
+                    "fact_id": "new-fact",
+                    "content": "Alex lives in Dhaka.",
+                    "confidence": 0.9,
+                    "entity_name": "Alex",
+                }
+            ],
+            supersessions=[
+                {
+                    "new_fact_id": "new-fact",
+                    "supersedes_fact_id": old_database_id,
+                    "reason": "location updated",
+                }
+            ],
+            invalidations=[],
+        )
+
+        supersedes_call = next(
+            call for call in mock_transaction.run.call_args_list if "SUPERSEDES" in call.args[0]
+        )
+        assert supersedes_call.kwargs["new_id"] == generate_int_id("fact:new-fact")
+        assert supersedes_call.kwargs["old_id"] == old_database_id
+        assert any(
+            "SET f.is_current = false" in call.args[0]
+            for call in mock_transaction.run.call_args_list
+        )
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

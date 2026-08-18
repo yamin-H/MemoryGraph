@@ -329,56 +329,76 @@ async def evaluate_sample(request: EvaluateSampleRequest) -> dict[str, Any]:
 
 @router.get("/results")
 async def get_benchmark_results() -> dict[str, Any]:
-    """Get aggregate benchmark comparison matrix across systems and datasets."""
-    # Pre-computed & verified scores from full benchmark runs
-    matrix = {
+    """Get aggregate benchmark comparison matrix.
+
+    Returns real computed results from the last benchmark run if available,
+    otherwise indicates no real run has been generated yet.
+    """
+    results_file = (
+        Path(__file__).resolve().parents[3] / "scripts" / "data" / "benchmark_results.json"
+    )
+
+    if not results_file.exists():
+        # No real run yet — do NOT fabricate numbers.
+        return {
+            "status": "no_real_run_yet",
+            "message": "Run POST /benchmark/run to generate real results from the datasets.",
+            "benchmarks": {},
+            "last_job": max(benchmark_results.keys()) if benchmark_results else None,
+        }
+
+    with open(results_file) as f:
+        data = json.load(f)
+
+    benchmarks: dict[str, Any] = {}
+    for ds_name, ds_results in data.get("results", {}).items():
+        # Per-system accuracy averages
+        system_scores: dict[str, float] = {}
+        for sys_name, sys_results in ds_results.items():
+            total = len(sys_results)
+            correct = sum(1 for r in sys_results if r.get("is_correct", False))
+            system_scores[sys_name] = round(correct * 100 / total, 1) if total else 0.0
+
+        # Per question-type breakdown
+        by_type: dict[str, dict[str, list]] = {}
+        for sys_name, sys_results in ds_results.items():
+            for r in sys_results:
+                qtype = r.get("question_type", "general")
+                by_type.setdefault(qtype, {}).setdefault(sys_name, []).append(r)
+
+        metrics = []
+        for qtype, type_results in by_type.items():
+            row = {"type": qtype.replace("_", " ").title()}
+            for sys_name, results in type_results.items():
+                t = len(results)
+                c = sum(1 for r in results if r.get("is_correct", False))
+                row[sys_name] = round(c * 100 / t, 1) if t else 0.0
+            if "memorygraph" in row and "vector" in row:
+                row["gain"] = f"+{round(row['memorygraph'] - row['vector'])}%"
+            metrics.append(row)
+
+        benchmarks[ds_name] = {
+            "name": DATASET_CONFIG.get(ds_name, {}).get("name", ds_name),
+            "total_questions": sum(len(v) for v in ds_results.values()),
+            "metrics": metrics,
+            "averages": system_scores,
+        }
+
+    return {
         "status": "ready",
-        "benchmarks": {
-            "longmemeval": {
-                "name": "LongMemEval",
-                "total_questions": 500,
-                "metrics": [
-                    {"type": "Single session facts", "longContext": 92, "vector": 85, "mem0": 88, "memorygraph": 96, "gain": "+8%"},
-                    {"type": "Multi-session synthesis", "longContext": 78, "vector": 72, "mem0": 81, "memorygraph": 92, "gain": "+11%"},
-                    {"type": "Overwritten facts", "longContext": 65, "vector": 58, "mem0": 70, "memorygraph": 89, "gain": "+19%"},
-                    {"type": "Absent info (abstention)", "longContext": 88, "vector": 82, "mem0": 85, "memorygraph": 91, "gain": "+6%"},
-                ],
-                "averages": {"longContext": 81, "vector": 74, "mem0": 81, "memorygraph": 92},
-            },
-            "longmemeval_v2": {
-                "name": "LongMemEval V2",
-                "total_questions": 500,
-                "metrics": [
-                    {"type": "Single session facts", "longContext": 94, "vector": 87, "mem0": 90, "memorygraph": 97, "gain": "+7%"},
-                    {"type": "Multi-session synthesis", "longContext": 80, "vector": 74, "mem0": 83, "memorygraph": 94, "gain": "+11%"},
-                    {"type": "Overwritten facts", "longContext": 68, "vector": 61, "mem0": 72, "memorygraph": 91, "gain": "+19%"},
-                    {"type": "Absent info (abstention)", "longContext": 90, "vector": 84, "mem0": 87, "memorygraph": 93, "gain": "+6%"},
-                ],
-                "averages": {"longContext": 83, "vector": 76, "mem0": 83, "memorygraph": 94},
-            },
-            "beam": {
-                "name": "BEAM Evaluator",
-                "total_questions": 450,
-                "metrics": [
-                    {"type": "Single session facts", "longContext": 89, "vector": 82, "mem0": 85, "memorygraph": 94, "gain": "+9%"},
-                    {"type": "Multi-session synthesis", "longContext": 75, "vector": 68, "mem0": 78, "memorygraph": 90, "gain": "+12%"},
-                    {"type": "Overwritten facts", "longContext": 62, "vector": 55, "mem0": 67, "memorygraph": 86, "gain": "+19%"},
-                    {"type": "Absent info (abstention)", "longContext": 85, "vector": 79, "mem0": 82, "memorygraph": 89, "gain": "+7%"},
-                ],
-                "averages": {"longContext": 78, "vector": 71, "mem0": 78, "memorygraph": 90},
-            },
-        },
+        "benchmarks": benchmarks,
         "last_job": max(benchmark_results.keys()) if benchmark_results else None,
     }
-    return matrix
 
 
 
 async def run_benchmark_job(job_id: str, redis_client: redis.Redis):
-    """Run real LongMemEval sample evaluation job in background.
+    """Run real LongMemEval evaluation across ALL systems (vector, longcontext, mem0, memorygraph).
 
     Downloads real dataset samples from HuggingFace if not cached locally.
     """
+    from eval.runner import run_benchmark
+
     results = {
         "job_id": job_id,
         "status": "running",
@@ -386,63 +406,39 @@ async def run_benchmark_job(job_id: str, redis_client: redis.Redis):
         "tests": [],
     }
 
-    # Load 5 real samples from LongMemEval Oracle (downloads from HuggingFace if not local)
-    samples = load_dataset_file("longmemeval")[:5]
-    if not samples:
+    try:
+        # Run the real benchmark across all systems and datasets
+        # Use max_examples_per_dataset=10 to keep runtime reasonable for hackathon demo
+        benchmark_data = run_benchmark(
+            systems=["vector", "longcontext", "mem0", "memorygraph"],
+            datasets=["longmemeval", "longmemeval_v2", "beam"],
+            max_examples_per_dataset=10,
+        )
+
+        # Flatten for job results (for /job/{job_id} endpoint)
+        for ds_name, ds_results in benchmark_data["results"].items():
+            for sys_name, sys_results in ds_results.items():
+                for r in sys_results:
+                    results["tests"].append({
+                        "dataset": ds_name,
+                        "system": sys_name,
+                        "question_id": r["question_id"],
+                        "question": r["question"],
+                        "ground_truth": r["ground_truth"],
+                        "predicted": r["predicted"],
+                        "is_correct": r.get("is_correct", False),
+                        "confidence": r.get("confidence", 0.0),
+                        "abstained": r.get("abstained", False),
+                        "latency_ms": r.get("latency_ms", 0),
+                    })
+
+        results["status"] = "completed"
+        results["end_time"] = time.time()
+        results["total_duration_ms"] = int((results["end_time"] - results["start_time"]) * 1000)
+
+    except Exception as exc:
         results["status"] = "failed"
-        results["error"] = "Could not load real LongMemEval dataset from local storage or HuggingFace."
-        benchmark_results[job_id] = results
-        return
-
-    print(f"[Benchmark {job_id}] Running evaluation on {len(samples)} real LongMemEval samples.")
-
-    for s in samples:
-        q = s.get("question", "")
-        gt = s.get("answer", "")
-
-        # Ingest haystack sessions into HydraDB before retrieval
-        haystack = s.get("haystack_sessions", [])
-        sess_ids = s.get("haystack_session_ids", [])
-        sess_dates = s.get("haystack_dates", [])
-        for idx, msgs in enumerate(haystack):
-            sess_id = sess_ids[idx] if idx < len(sess_ids) else f"bench-{s.get('question_id')}-{idx}"
-            sess_date = sess_dates[idx] if idx < len(sess_dates) else "2024-01-01T00:00:00Z"
-            formatted = []
-            for m in msgs:
-                if isinstance(m, dict):
-                    formatted.append({"role": m.get("role", "user"), "content": m.get("content", "")})
-                elif isinstance(m, str):
-                    formatted.append({"role": "user", "content": m})
-            try:
-                run_pipeline({
-                    "session_id": sess_id,
-                    "user_id": "bench-user",
-                    "started_at": sess_date,
-                    "messages": formatted,
-                })
-            except Exception as exc:
-                print(f"[Benchmark {job_id}] Ingest error for session {sess_id}: {exc}")
-
-        start_t = time.time()
-        try:
-            ret = run_retrieval(q)
-        except Exception as exc:
-            print(f"[Benchmark {job_id}] Retrieval error for question {s.get('question_id')}: {exc}")
-            ret = {"answer": {"answer": "", "abstained": False, "confidence": 0.0}}
-        duration_ms = int((time.time() - start_t) * 1000)
-        pred = ret.get("answer", {}).get("answer", "")
-        results["tests"].append({
-            "question_id": s.get("question_id"),
-            "question": q,
-            "ground_truth": gt,
-            "predicted": pred,
-            "is_correct": exact_match(pred, gt) or contains_answer(pred, gt),
-            "duration_ms": duration_ms,
-        })
-
-    results["status"] = "completed"
-    results["end_time"] = time.time()
-    results["total_duration_ms"] = int((results["end_time"] - results["start_time"]) * 1000)
+        results["error"] = str(exc)
 
     benchmark_results[job_id] = results
     await redis_client.set("benchmark:last_job_id", job_id)

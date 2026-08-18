@@ -58,14 +58,16 @@ def test_full_flow_multi_user_isolation(hydradb_client):
         assert "error" not in result
 
     # Query Alex
-    result = run_retrieval("Where does Alex live?")
-    assert "Dhaka" in result["answer"]
-    assert "London" not in result["answer"]
+    result = run_retrieval("Where do I live?", user_id="alex")
+    answer = result["answer"]["answer"]
+    assert "Dhaka" in answer
+    assert "London" not in answer
 
     # Query Bob
-    result = run_retrieval("Where does Bob live?")
-    assert "London" in result["answer"]
-    assert "Dhaka" not in result["answer"]
+    result = run_retrieval("Where do I live?", user_id="bob")
+    answer = result["answer"]["answer"]
+    assert "London" in answer
+    assert "Dhaka" not in answer
 
 
 @pytest.mark.e2e

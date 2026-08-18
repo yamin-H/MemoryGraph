@@ -23,6 +23,7 @@ export default function GraphExplorerPage() {
   const [searchType, setSearchType] = useState<'entity' | 'session'>('entity');
   const [activeEntity, setActiveEntity] = useState<string | undefined>(undefined);
   const [activeSession, setActiveSession] = useState<string | undefined>(undefined);
+  const [userId, setUserId] = useState('user');
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +95,16 @@ export default function GraphExplorerPage() {
               />
             </div>
 
+            <input
+              type="text"
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              aria-label="User ID"
+              placeholder="User ID"
+              className="input-field w-28 py-2 text-xs h-[38px] font-mono"
+              required
+            />
+
             <button type="submit" className="btn-primary text-xs h-[38px] px-4 flex-shrink-0 shadow-sm">
               Filter
             </button>
@@ -126,7 +137,7 @@ export default function GraphExplorerPage() {
 
       {/* 3D Visualizer Canvas */}
       <div className="flex-1 min-h-0 relative">
-        <MemoryGraph entityName={activeEntity} sessionId={activeSession} />
+        <MemoryGraph entityName={activeEntity} sessionId={activeSession} userId={userId.trim() || 'user'} />
       </div>
     </div>
   );
