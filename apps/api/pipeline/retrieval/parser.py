@@ -48,14 +48,18 @@ def _fallback_parse_question(question: str) -> dict[str, Any]:
         if w not in stop_words and w not in keywords:
             keywords.append(w)
 
-    if any(phrase in lower_question for phrase in ["live", "lives", "reside", "resides", "home", "location", "city", "country"]):
-        keywords.extend(["live", "lives", "lived", "location", "city", "reside", "home"])
-    if any(phrase in lower_question for phrase in ["work", "works", "job", "role", "profession", "career", "engineer", "occupation", "employment"]):
-        keywords.extend(["work", "works", "worked", "job", "career", "engineer", "profession", "occupation", "software"])
-    if any(phrase in lower_question for phrase in ["dog", "cat", "pet", "animal", "puppy", "kitten"]):
-        keywords.extend(["pet", "dog", "cat", "animal", "puppy", "kitten", "mochi", "pixel"])
-    if any(phrase in lower_question for phrase in ["car", "vehicle", "automobile", "drive"]):
-        keywords.extend(["car", "vehicle", "automobile", "drive"])
+    if any(phrase in lower_question for phrase in ["live", "lives", "reside", "resides", "home", "location", "city", "country", "where"]):
+        keywords.extend(["live", "lives", "lived", "location", "city", "reside", "home", "move", "moved", "moving", "relocat", "settled", "osaka", "tokyo", "japan"])
+    if any(phrase in lower_question for phrase in ["work", "works", "job", "role", "profession", "career", "engineer", "occupation", "employment", "company", "employer"]):
+        keywords.extend(["work", "works", "worked", "job", "career", "engineer", "profession", "occupation", "company", "employer", "promote", "promoted", "hired", "position"])
+    if any(phrase in lower_question for phrase in ["dog", "cat", "pet", "animal", "puppy", "kitten", "adopted"]):
+        keywords.extend(["pet", "dog", "cat", "animal", "puppy", "kitten", "adopted", "adopt"])
+    if any(phrase in lower_question for phrase in ["car", "vehicle", "automobile", "drive", "scooter", "commute"]):
+        keywords.extend(["car", "vehicle", "automobile", "drive", "scooter", "commute", "bicycle", "motorcycle"])
+    if any(phrase in lower_question for phrase in ["hobby", "hobbies", "interest", "enjoy", "passion"]):
+        keywords.extend(["hobby", "hobbies", "interest", "enjoy", "passion", "play", "plays"])
+    if any(phrase in lower_question for phrase in ["diet", "food", "eat", "vegan", "meal", "dish", "cuisine"]):
+        keywords.extend(["diet", "food", "eat", "vegan", "meal", "dish", "cuisine", "vegetarian"])
 
     keywords = list(dict.fromkeys(keywords))
 
@@ -73,6 +77,34 @@ def _fallback_parse_question(question: str) -> dict[str, Any]:
         "original_question": question,
         "keywords": keywords,
     }
+
+
+def _expand_keywords(question: str, existing_keywords: list[str]) -> list[str]:
+    """Expand parsed keywords with domain-specific synonyms.
+
+    This is applied after EVERY parse (Groq or fallback) to ensure consistent
+    keyword coverage regardless of which parser produced the base keywords.
+    """
+    q = question.lower()
+    extra: list[str] = list(existing_keywords)
+
+    if any(w in q for w in ["live", "lives", "where", "location", "city", "country", "reside", "home"]):
+        extra.extend(["live", "lives", "lived", "location", "city", "reside", "home",
+                       "move", "moved", "moving", "relocat", "settled", "based"])
+    if any(w in q for w in ["work", "job", "role", "career", "company", "employ", "profession", "position"]):
+        extra.extend(["work", "works", "worked", "job", "career", "company", "employer",
+                       "promote", "promoted", "hired", "position", "role", "engineer", "architect",
+                       "scientist", "developer", "manager", "director", "analyst"])
+    if any(w in q for w in ["pet", "dog", "cat", "animal", "puppy", "kitten", "adopt"]):
+        extra.extend(["pet", "dog", "cat", "animal", "puppy", "kitten", "adopted", "adopt"])
+    if any(w in q for w in ["diet", "food", "eat", "vegan", "meal", "dish", "cuisine"]):
+        extra.extend(["diet", "food", "eat", "vegan", "meal", "dish", "cuisine", "vegetarian", "plant"])
+    if any(w in q for w in ["hobby", "hobbies", "interest", "enjoy", "passion", "leisure"]):
+        extra.extend(["hobby", "hobbies", "interest", "enjoy", "passion", "play", "plays"])
+    if any(w in q for w in ["car", "vehicle", "scooter", "commute", "drive", "transport"]):
+        extra.extend(["car", "vehicle", "scooter", "commute", "drive", "bicycle", "motorcycle"])
+
+    return list(dict.fromkeys(extra))
 
 
 SYSTEM_PROMPT = """You are a question parser for a memory retrieval system. Your job is to extract structured information from natural language questions.

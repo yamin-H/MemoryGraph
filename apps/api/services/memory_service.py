@@ -45,8 +45,8 @@ class MemoryService:
         return results
 
     def _resolve_user_id(self, user_id: str | None) -> str:
-        if not user_id or user_id.strip().lower() in ("user", "anonymous", "default"):
-            return "alex"
+        if not user_id or user_id.strip().lower() in ("anonymous", "default", ""):
+            return "anonymous"
         return user_id.strip()
 
     def query_memory(self, question: str, user_id: str = "anonymous") -> dict[str, Any]:
@@ -479,14 +479,14 @@ class MemoryService:
             self.hydra.ensure_connected()
             with self.hydra._driver.session() as session:
                 query_facts = (
-                    "MATCH (f:Fact) "
-                    "OPTIONAL MATCH (f)-[:OCCURRED_IN]->(s:Session) "
+                    "MATCH (f:Fact)-[:OCCURRED_IN]->(s:Session) "
+                    "WHERE s.user_id = $user_id "
                     "OPTIONAL MATCH (newer:Fact)-[:SUPERSEDES]->(f) "
                     "RETURN f.content AS content, f.is_current AS is_current, "
                     "f.confidence AS confidence, f.created_at AS created_at, "
                     "s.session_id AS session_id, newer.content AS superseded_by"
                 )
-                res = session.run(query_facts)
+                res = session.run(query_facts, user_id=user_id)
                 for record in res:
                     item = {
                         "content": record["content"] or "",
@@ -497,12 +497,38 @@ class MemoryService:
                         "superseded_by": record["superseded_by"],
                     }
                     all_raw_facts.append(item)
-                    if item["is_current"]:
-                        active_facts.append(item)
-                    else:
-                        superseded_facts.append(item)
         except Exception:
             pass
+
+        # Include dynamically ingested facts from delta overlay so the baseline can see them
+        try:
+            import json
+            from pathlib import Path
+            delta_file = Path(__file__).resolve().parent.parent / "data" / "ingested_memory.json"
+            if delta_file.exists():
+                data = json.loads(delta_file.read_text("utf-8"))
+                superseded_ids = set(str(x) for x in data.get("superseded_fact_ids", []))
+                for f in data.get("facts", []):
+                    if str(f.get("user_id", "")).strip().lower() == user_id.strip().lower():
+                        fid = str(f.get("fact_id", ""))
+                        is_curr = fid not in superseded_ids
+                        item = {
+                            "content": f.get("content", ""),
+                            "is_current": is_curr,
+                            "confidence": float(f.get("confidence", 0.9)),
+                            "created_at": f.get("created_at", ""),
+                            "session_id": f.get("session_id", "session-unknown"),
+                            "superseded_by": "unknown" if not is_curr else None,
+                        }
+                        all_raw_facts.append(item)
+        except Exception:
+            pass
+
+        for item in all_raw_facts:
+            if item["is_current"]:
+                active_facts.append(item)
+            else:
+                superseded_facts.append(item)
 
         # Return an honest comparison result when the graph contains no facts.
         if not all_raw_facts:

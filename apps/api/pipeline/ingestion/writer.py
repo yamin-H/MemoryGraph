@@ -36,12 +36,25 @@ def _save_ingested_delta(session_id: str, user_id: str, started_at: str, facts: 
             "started_at": started_at,
         }
 
-        # If new facts describe moving/living in a new place (e.g. Tokyo), invalidate old locations (Rajshahi/Dhaka)
-        new_loc_facts = [f for f in facts if any(k in f.get("content", "").lower() for k in ["move", "live", "reside", "relocate", "tokyo"])]
+        # If new facts describe moving/living somewhere new, track old location keywords to supersede
+        MOVE_KEYWORDS = {"move", "moved", "moving", "relocat", "left", "no longer lives", "no longer live"}
+        LOCATION_KEYWORDS = {"live", "lives", "reside", "resides", "located", "location"}
+        new_loc_facts = [
+            f for f in facts
+            if any(k in f.get("content", "").lower() for k in MOVE_KEYWORDS)
+        ]
         if new_loc_facts:
-            for c in ["rajshahi", "dhaka"]:
-                if c not in data["superseded_contents"]:
-                    data["superseded_contents"].append(c)
+            # Find old location facts in existing delta data and supersede them
+            existing_facts = data.get("facts", [])
+            for existing_f in existing_facts:
+                if existing_f.get("user_id", "").lower() != user_id.lower():
+                    continue
+                ec = existing_f.get("content", "").lower()
+                # Only supersede location-type facts, not other fact types
+                if any(lk in ec for lk in LOCATION_KEYWORDS):
+                    old_fid = str(existing_f.get("fact_id", ""))
+                    if old_fid and old_fid not in data["superseded_fact_ids"]:
+                        data["superseded_fact_ids"].append(old_fid)
 
         for sup in supersessions:
             old_id = sup.get("supersedes_fact_id")

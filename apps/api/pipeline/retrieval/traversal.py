@@ -12,23 +12,31 @@ def _apply_ingested_delta(facts: list[dict[str, Any]], user_id: str) -> list[dic
     try:
         data = json.loads(delta_file.read_text("utf-8"))
         superseded_ids = set(str(x) for x in data.get("superseded_fact_ids", []))
+        superseded_contents = [str(x).lower() for x in data.get("superseded_contents", [])]
         target_uid = str(user_id or "anonymous").strip().lower()
 
         filtered_facts = []
         for f in facts:
             fid = str(f.get("fact_id", ""))
             fcnt = str(f.get("content", "")).lower()
+            # Filter out globally superseded fact IDs
             if fid in superseded_ids:
                 continue
-            if any(sc in fcnt for sc in superseded_contents):
-                continue
+            # Only filter superseded contents for the matching user
+            f_uid = str(f.get("user_id", "")).strip().lower()
+            if superseded_contents and (not f_uid or f_uid == target_uid):
+                if any(sc in fcnt for sc in superseded_contents):
+                    continue
             filtered_facts.append(f)
 
+        existing_ids = set(str(x.get("fact_id")) for x in filtered_facts)
         for new_f in data.get("facts", []):
             n_uid = str(new_f.get("user_id", "")).strip().lower()
             # Strict partition: only include facts matching the requested user_id
             if n_uid == target_uid:
-                if not any(str(x.get("fact_id")) == str(new_f.get("fact_id")) for x in filtered_facts):
+                fid = str(new_f.get("fact_id"))
+                if fid not in existing_ids:
+                    existing_ids.add(fid)
                     filtered_facts.append(new_f)
 
         return filtered_facts
@@ -116,11 +124,13 @@ def traverse_for_question(
                 }
                 facts.append(fact)
 
-        # Also fetch any current facts stored directly on Fact nodes
+        # Also fetch any current facts stored directly on Fact nodes scoped to this user's sessions
         try:
             direct_result = session.run(
-                "MATCH (f:Fact) WHERE f.is_current = true "
-                "RETURN f.id, f.content, f.confidence, f.is_current, f.created_at"
+                "MATCH (f:Fact)-[:OCCURRED_IN]->(s:Session) "
+                "WHERE s.user_id = $user_id AND f.is_current = true "
+                "RETURN f.id, f.content, f.confidence, f.is_current, f.created_at, s.session_id, s.started_at",
+                user_id=str(user_id or "anonymous"),
             )
             for rec in direct_result:
                 fid = rec["f.id"]
@@ -131,8 +141,8 @@ def traverse_for_question(
                         "confidence": rec.get("f.confidence", 0.9),
                         "is_current": rec.get("f.is_current", True),
                         "created_at": rec["f.created_at"],
-                        "session_id": "current",
-                        "session_started_at": rec["f.created_at"],
+                        "session_id": rec["s.session_id"],
+                        "session_started_at": rec["s.started_at"],
                     })
         except Exception:
             pass
@@ -166,11 +176,12 @@ def traverse_for_question(
     # Apply dynamic ingested facts and supersessions overlay
     facts = _apply_ingested_delta(facts, user_id)
 
-    # For targeted queries with specific attribute keywords, filter facts
+    # For targeted queries with specific attribute keywords, filter facts.
+    # If the filter produces zero results, fall back to all facts to avoid silent data loss.
     if keywords and facts:
         attr_keywords = [
             kw.lower() for kw in keywords
-            if kw.lower() not in (str(entity_name or "").lower(), "user", "who", "what", "where", "tell", "about", "is", "alex")
+            if kw.lower() not in (str(entity_name or "").lower(), "user", "who", "what", "where", "tell", "about", "is", "alex", "now", "currently", "current")
         ]
         if attr_keywords:
             filtered = []
@@ -178,7 +189,9 @@ def traverse_for_question(
                 content_lower = fact["content"].lower()
                 if any(kw in content_lower for kw in attr_keywords):
                     filtered.append(fact)
-            facts = filtered
+            # Only apply filter if it kept at least 1 fact — otherwise keep everything
+            if filtered:
+                facts = filtered
 
     return facts
 

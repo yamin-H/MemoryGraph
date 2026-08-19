@@ -68,36 +68,55 @@ def check_abstention(
             "has_conflict": False,
         }
 
-    # Group current facts by topic category and take most recent per category
+    # Group current facts by topic category and take the most recent per topic.
+    # This prevents the same category (e.g. location) from contributing multiple
+    # contradictory facts while still returning all distinct topic categories.
     seen_topics: set[str] = set()
     facts_to_use: list[dict[str, Any]] = []
 
-    # Sort most recent first
+    # Sort most recent first so we keep the newest fact per topic
     sorted_current = sorted(
         current_facts,
         key=lambda f: f.get("session_started_at") or f.get("created_at") or "",
         reverse=True,
     )
 
+    # Generic topic extraction from content words (no hardcoded names)
+    LOCATION_WORDS = {"live", "lives", "lived", "reside", "resides", "located", "location", "city", "country", "moved", "move"}
+    WORK_WORDS = {"work", "works", "worked", "job", "role", "career", "company", "employer", "profession", "occupation"}
+    PET_WORDS = {"dog", "cat", "pet", "puppy", "kitten", "animal", "adopted", "adopt"}
+    DIET_WORDS = {"diet", "vegan", "vegetarian", "food", "dish", "eat", "eating", "meal", "cuisine"}
+    VEHICLE_WORDS = {"car", "vehicle", "scooter", "bicycle", "bike", "motorcycle", "drive", "drives", "commute"}
+    HOBBY_WORDS = {"hobby", "hobbies", "interest", "passion", "plays", "play", "enjoy", "enjoys"}
+
     for fact in sorted_current:
-        content = fact.get("content", "").lower()
-        if any(w in content for w in ["live", "reside", "location", "city", "japan", "tokyo", "rajshahi", "dhaka"]):
+        content_words = set(fact.get("content", "").lower().split())
+        if content_words & LOCATION_WORDS:
             topic = "location"
-        elif any(w in content for w in ["work", "job", "architect", "engineer", "cybercorp", "company", "career"]):
+        elif content_words & WORK_WORDS:
             topic = "work"
-        elif any(w in content for w in ["dog", "cat", "pet", "simba", "mochi", "pixel"]):
+        elif content_words & PET_WORDS:
             topic = "pet"
-        elif any(w in content for w in ["diet", "vegan", "ramen", "food", "dish", "plant-based"]):
+        elif content_words & DIET_WORDS:
             topic = "diet"
+        elif content_words & VEHICLE_WORDS:
+            topic = "vehicle"
+        elif content_words & HOBBY_WORDS:
+            topic = "hobby"
         else:
-            words = [w for w in content.split() if len(w) > 3][:3]
-            topic = " ".join(words) if words else content
+            # Use first 3 meaningful content words as a generic topic key
+            words = [w for w in fact.get("content", "").lower().split() if len(w) > 3][:3]
+            topic = " ".join(words) if words else fact.get("content", "")[:30]
 
         if topic not in seen_topics:
             seen_topics.add(topic)
             facts_to_use.append(fact)
 
     has_conflict = any(f.get("has_conflict") for f in current_facts)
+
+    # If no facts matched the topic grouping (shouldn't happen), fall back to all current facts
+    if not facts_to_use:
+        facts_to_use = sorted_current
 
     return {
         "should_abstain": False,
