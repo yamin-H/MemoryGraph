@@ -411,36 +411,48 @@ def get_multi_entity_paths(
 
         # Direct entity-fact subgraphs matching requested entity names
         if not records_to_process:
-            for name in entity_names:
-                subgraph_query = """
-                MATCH (e:Entity)<-[r:MENTIONS]-(f:Fact)
-                WHERE e.user_id = $user_id
-                RETURN e.id AS entity_id, e.name AS entity_name, e.type AS entity_type,
-                       f.id AS fact_id, f.content AS fact_content, f.confidence AS fact_confidence,
-                       f.is_current AS is_current, f.created_at AS created_at LIMIT 50
-                """
-                try:
-                    res = session.run(subgraph_query, user_id=str(user_id or "anonymous"))
-                    for rec in res:
-                        e_name = str(rec.get("entity_name") or "")
-                        if e_name.lower() == name.lower() or name.lower() in e_name.lower() or e_name.lower() in name.lower():
-                            e_id = str(rec["entity_id"])
-                            f_id = str(rec["fact_id"])
+            subgraph_query = """
+            MATCH (f:Fact)-[:OCCURRED_IN]->(s:Session {user_id: $user_id})
+            OPTIONAL MATCH (f)-[:MENTIONS]->(e:Entity)
+            RETURN f.id AS fact_id, f.content AS fact_content, f.confidence AS fact_confidence,
+                   f.is_current AS is_current, f.created_at AS created_at,
+                   e.id AS entity_id, e.name AS entity_name, e.type AS entity_type
+            LIMIT 100
+            """
+            try:
+                res = session.run(subgraph_query, user_id=str(user_id or "anonymous"))
+                for rec in res:
+                    f_id = str(rec["fact_id"])
+                    f_content = str(rec.get("fact_content") or "")
+                    e_name = str(rec.get("entity_name") or "User")
+                    e_id = str(rec.get("entity_id") or f"ent_{user_id}")
+
+                    for name in entity_names:
+                        e_match = (
+                            e_name.lower() == name.lower()
+                            or name.lower() in e_name.lower()
+                            or e_name.lower() in name.lower()
+                            or (e_name.lower() == "user" and (name.lower() == str(user_id or "").lower() or name.lower() in ["user", "me", "i"]))
+                        )
+                        f_match = name.lower() in f_content.lower()
+
+                        if e_match or f_match:
+                            display_label = str(user_id).capitalize() if e_name.lower() == "user" else e_name
                             nodes_map[e_id] = {
                                 "id": e_id,
-                                "label": e_name,
+                                "label": display_label,
                                 "type": "Entity",
-                                "data": {"name": e_name, "type": rec["entity_type"]},
+                                "data": {"name": display_label, "type": rec.get("entity_type") or "person"},
                             }
                             nodes_map[f_id] = {
                                 "id": f_id,
-                                "label": rec["fact_content"][:40] if rec["fact_content"] else f"Fact #{f_id}",
+                                "label": f_content[:40] if f_content else f"Fact #{f_id}",
                                 "type": "Fact",
                                 "data": {
-                                    "content": rec["fact_content"],
-                                    "is_current": rec["is_current"],
-                                    "confidence": rec["fact_confidence"],
-                                    "created_at": rec["created_at"],
+                                    "content": f_content,
+                                    "is_current": rec.get("is_current", True),
+                                    "confidence": rec.get("fact_confidence", 0.9),
+                                    "created_at": rec.get("created_at", ""),
                                 },
                             }
                             edge_key = f"{f_id}->{e_id}:MENTIONS"
@@ -452,15 +464,70 @@ def get_multi_entity_paths(
                                     "type": "MENTIONS",
                                     "data": {"type": "MENTIONS"},
                                 })
+
+                            if f_match and name.lower() not in (e_name.lower(), "user", str(user_id or "").lower()):
+                                sub_e_id = f"ent_{name.lower().replace(' ', '_')}"
+                                if sub_e_id not in nodes_map:
+                                    nodes_map[sub_e_id] = {
+                                        "id": sub_e_id,
+                                        "label": name.capitalize(),
+                                        "type": "Entity",
+                                        "data": {"name": name.capitalize(), "type": "concept"},
+                                    }
+                                sub_edge_key = f"{f_id}->{sub_e_id}:MENTIONS"
+                                if sub_edge_key not in seen_edge_keys:
+                                    seen_edge_keys.add(sub_edge_key)
+                                    edges_list.append({
+                                        "source": f_id,
+                                        "target": sub_e_id,
+                                        "type": "MENTIONS",
+                                        "data": {"type": "MENTIONS"},
+                                    })
+
                             if f_id not in seen_fact_ids:
                                 seen_fact_ids.add(f_id)
                                 facts_list.append({
                                     "fact_id": f_id,
-                                    "content": rec["fact_content"],
-                                    "confidence": rec["fact_confidence"],
-                                    "is_current": rec["is_current"],
-                                    "created_at": rec["created_at"],
+                                    "content": f_content,
+                                    "confidence": rec.get("fact_confidence", 0.9),
+                                    "is_current": rec.get("is_current", True),
+                                    "created_at": rec.get("created_at", ""),
                                 })
+            except Exception:
+                pass
+
+        if not facts_list:
+            import json
+            from pathlib import Path
+            mem_path = Path(__file__).parent.parent.parent / "data" / "ingested_memory.json"
+            if mem_path.exists():
+                try:
+                    with open(mem_path, "r", encoding="utf-8") as fp:
+                        mem_data = json.load(fp)
+                    for f in mem_data.get("facts", []):
+                        if str(f.get("user_id", "")).lower() == str(user_id or "").lower():
+                            f_content = str(f.get("content", ""))
+                            for name in entity_names:
+                                if name.lower() in f_content.lower() or name.lower() == str(user_id).lower() or name.lower() in ["user", "me", "i"]:
+                                    f_id = str(f.get("fact_id"))
+                                    e_id = f"ent_{user_id}"
+                                    nodes_map[e_id] = {"id": e_id, "label": str(user_id).capitalize(), "type": "Entity", "data": {"name": str(user_id).capitalize(), "type": "person"}}
+                                    nodes_map[f_id] = {"id": f_id, "label": f_content[:40], "type": "Fact", "data": {"content": f_content, "is_current": f.get("is_current", True), "created_at": f.get("created_at", "")}}
+                                    edge_key = f"{f_id}->{e_id}:MENTIONS"
+                                    if edge_key not in seen_edge_keys:
+                                        seen_edge_keys.add(edge_key)
+                                        edges_list.append({"source": f_id, "target": e_id, "type": "MENTIONS", "data": {"type": "MENTIONS"}})
+                                    if name.lower() not in ("user", str(user_id or "").lower()):
+                                        sub_e_id = f"ent_{name.lower().replace(' ', '_')}"
+                                        if sub_e_id not in nodes_map:
+                                            nodes_map[sub_e_id] = {"id": sub_e_id, "label": name.capitalize(), "type": "Entity", "data": {"name": name.capitalize(), "type": "concept"}}
+                                        sub_edge_key = f"{f_id}->{sub_e_id}:MENTIONS"
+                                        if sub_edge_key not in seen_edge_keys:
+                                            seen_edge_keys.add(sub_edge_key)
+                                            edges_list.append({"source": f_id, "target": sub_e_id, "type": "MENTIONS", "data": {"type": "MENTIONS"}})
+                                    if f_id not in seen_fact_ids:
+                                        seen_fact_ids.add(f_id)
+                                        facts_list.append(f)
                 except Exception:
                     pass
 
@@ -562,7 +629,14 @@ def get_multi_entity_paths(
                 "length": 2,
                 "start_entity": entity_names[0] if entity_names else "Entity",
                 "end_entity": entity_names[-1] if len(entity_names) > 1 else (entity_names[0] if entity_names else "Entity"),
-                "fact_chain": [fact["content"]],
+                "fact_chain": [
+                    {
+                        "fact_id": fact.get("fact_id", f"fact-{idx}"),
+                        "content": fact.get("content", ""),
+                        "is_current": fact.get("is_current", True),
+                        "created_at": fact.get("created_at", ""),
+                    }
+                ],
             })
 
     return {
