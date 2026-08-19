@@ -10,7 +10,7 @@ from typing import Any
 from groq import Groq
 
 
-def _fallback_parse_question(question: str) -> dict[str, Any]:
+def _fallback_parse_question(question: str, user_id: str = "user") -> dict[str, Any]:
     """Best-effort parser when Groq returns an empty response."""
     normalized = question.strip()
     if not normalized:
@@ -43,7 +43,8 @@ def _fallback_parse_question(question: str) -> dict[str, Any]:
 
     keywords: list[str] = []
     words = re.findall(r"\b[a-zA-Z]{3,}\b", lower_question)
-    stop_words = {"what", "when", "where", "which", "who", "whom", "whose", "why", "how", "this", "that", "these", "those", "does", "have", "with", "from", "alex", "user", "about", "tell", "the", "and"}
+    user_uid = str(user_id or "user").strip().lower()
+    stop_words = {"what", "when", "where", "which", "who", "whom", "whose", "why", "how", "this", "that", "these", "those", "does", "have", "with", "from", user_uid, "user", "about", "tell", "the", "and"}
     for w in words:
         if w not in stop_words and w not in keywords:
             keywords.append(w)
@@ -112,15 +113,15 @@ SYSTEM_PROMPT = """You are a question parser for a memory retrieval system. Your
 Extract:
 - entity_name: The primary entity the question is about (person, place, thing). If the user asks about themselves (e.g., "What is my name?", "Where do I live?"), output "User" or the relevant subject.
 - question_type: One of the following types:
-  - "current_fact": Asking about current state ("Where does Alex live?", "What is my name?")
-  - "historical_fact": Asking about past states ("Where did Alex live before?")
-  - "multi_session_synthesis": Requires combining facts across sessions ("What jobs has Alex had?")
+  - "current_fact": Asking about current state ("Where do I live?", "What is my name?")
+  - "historical_fact": Asking about past states ("Where did I live before?")
+  - "multi_session_synthesis": Requires combining facts across sessions ("What jobs have I had?")
   - "absent_information": Asking about something not discussed
 - keywords: Important words from the question that help with retrieval (e.g. ["name"], ["live", "location"], ["job", "work"])
 
 Output must be valid JSON with this structure:
 {
-  "entity_name": "Alex",
+  "entity_name": "User",
   "question_type": "current_fact",
   "keywords": ["live", "location", "city", "where"]
 }"""
@@ -135,6 +136,7 @@ Return a JSON object with entity_name, question_type, and keywords."""
 def parse_question(
     client: Groq,
     question: str,
+    user_id: str = "user",
     model: str = "qwen/qwen3.6-27b",
 ) -> dict[str, Any]:
     """Parse a natural language question into structured form.
@@ -142,6 +144,7 @@ def parse_question(
     Args:
         client: Groq client instance
         question: Natural language question string
+        user_id: User ID to scope parsing and stop words
         model: Groq model to use
 
     Returns:
@@ -164,7 +167,7 @@ def parse_question(
 
         content = response.choices[0].message.content
         if not content:
-            return _fallback_parse_question(question)
+            return _fallback_parse_question(question, user_id=user_id)
 
         result = json.loads(content)
         result["original_question"] = question
@@ -181,13 +184,13 @@ def parse_question(
             if result.get("entity_name"):
                 result["entities"] = [result["entity_name"]]
             else:
-                fallback = _fallback_parse_question(question)
+                fallback = _fallback_parse_question(question, user_id=user_id)
                 result["entities"] = fallback.get("entities", [])
                 if not result.get("entity_name"):
                     result["entity_name"] = fallback.get("entity_name")
 
         if result.get("entity_name") is None and "original_question" in result:
-            fallback = _fallback_parse_question(question)
+            fallback = _fallback_parse_question(question, user_id=user_id)
             result["entity_name"] = fallback["entity_name"]
             result["entities"] = fallback["entities"]
             result["question_type"] = fallback["question_type"]
@@ -196,10 +199,10 @@ def parse_question(
         return result
 
     except json.JSONDecodeError:
-        fallback = _fallback_parse_question(question)
+        fallback = _fallback_parse_question(question, user_id=user_id)
         return fallback
     except Exception:
-        fallback = _fallback_parse_question(question)
+        fallback = _fallback_parse_question(question, user_id=user_id)
         return fallback
 
 

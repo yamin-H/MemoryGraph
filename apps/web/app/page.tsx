@@ -390,14 +390,14 @@ export default function HomePage() {
         {/* ═══════════════ HERO ═══════════════ */}
         <section
           className={`
-            relative rounded-3xl border border-white/[0.07] overflow-hidden grain-overlay
-            bg-[#060a12]
-            p-6 sm:p-10 lg:p-12 shadow-[0_0_80px_-20px_rgba(0,0,0,0.9)]
+            relative rounded-3xl border border-slate-200 dark:border-white/[0.07] overflow-hidden grain-overlay
+            bg-white dark:bg-[#060a12]
+            p-6 sm:p-10 lg:p-12 shadow-xl dark:shadow-[0_0_80px_-20px_rgba(0,0,0,0.9)]
             ${mounted ? 'anim-fade-in delay-0' : 'opacity-0'}
           `}
         >
           {/* Deep background gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0d1525] via-[#060a12] to-[#04070f] z-0" />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-[#0d1525] dark:via-[#060a12] dark:to-[#04070f] z-0" />
 
           {/* Animated ambient orbs */}
           <div className="drift-orb absolute top-[-60px] right-[-40px] w-[480px] h-[380px] rounded-full bg-gradient-radial from-amber-500/12 via-amber-600/5 to-transparent blur-[80px] pointer-events-none z-0" />
@@ -406,33 +406,33 @@ export default function HomePage() {
 
           {/* Dot grid pattern */}
           <div
-            className="absolute inset-0 z-0 pointer-events-none opacity-[0.12]"
+            className="absolute inset-0 z-0 pointer-events-none opacity-[0.06] dark:opacity-[0.12]"
             style={{
-              backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.45) 1px, transparent 1px)',
+              backgroundImage: 'radial-gradient(circle, rgba(100,116,139,0.35) 1px, transparent 1px)',
               backgroundSize: '28px 28px',
             }}
           />
 
           {/* Top-edge highlight line */}
-          <div className="absolute top-0 left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent z-10" />
+          <div className="absolute top-0 left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-amber-500/40 dark:via-amber-400/40 to-transparent z-10" />
 
           <div className="relative z-10 max-w-3xl space-y-6">
             {/* Badge */}
-            <div className={`${mounted ? 'anim-fade-up delay-1' : 'opacity-0'} inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-amber-400/30 bg-amber-500/[0.08] shimmer-badge`}>
-              <Sparkles size={12} className="text-amber-400" />
-              <span className="text-amber-300 text-[11px] font-black font-mono tracking-widest uppercase">
+            <div className={`${mounted ? 'anim-fade-up delay-1' : 'opacity-0'} inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-amber-500/30 dark:border-amber-400/30 bg-amber-500/[0.08] shimmer-badge`}>
+              <Sparkles size={12} className="text-amber-500 dark:text-amber-400" />
+              <span className="text-amber-700 dark:text-amber-300 text-[11px] font-black font-mono tracking-widest uppercase">
                 HACK HYDRA 2026 · TRACK 03 CHAMPION
               </span>
             </div>
 
             {/* Title */}
-            <h1 className={`${mounted ? 'anim-fade-up delay-2' : 'opacity-0'} text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.1] font-heading`}>
+            <h1 className={`${mounted ? 'anim-fade-up delay-2' : 'opacity-0'} text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.1] font-heading`}>
               Temporal Agent Memory{' '}
               <br className="hidden sm:block" />
               <span
                 className="text-transparent bg-clip-text"
                 style={{
-                  backgroundImage: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 40%, #fcd34d 70%, #f59e0b 100%)',
+                  backgroundImage: 'linear-gradient(135deg, #d97706 0%, #f59e0b 40%, #fbbf24 70%, #d97706 100%)',
                   backgroundSize: '200% auto',
                   animation: 'shimmer 4s linear infinite',
                 }}
@@ -442,11 +442,11 @@ export default function HomePage() {
             </h1>
 
             {/* Subtitle */}
-            <p className={`${mounted ? 'anim-fade-up delay-3' : 'opacity-0'} text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl`}>
+            <p className={`${mounted ? 'anim-fade-up delay-3' : 'opacity-0'} text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-2xl`}>
               A graph-native alternative to{' '}
-              <code className="text-rose-300 font-mono font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">mem0</code>{' '}
+              <code className="text-rose-700 dark:text-rose-300 font-mono font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">mem0</code>{' '}
               that resolves changing facts across multi-session chats with recursive{' '}
-              <code className="text-amber-300 font-mono font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">SUPERSEDES</code>{' '}
+              <code className="text-amber-700 dark:text-amber-300 font-mono font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">SUPERSEDES</code>{' '}
               edges and eliminates hallucination with calibrated honest abstention.
             </p>
 
@@ -459,13 +459,13 @@ export default function HomePage() {
               ].map(({ label, value, color, colorVal }) => (
                 <div
                   key={label}
-                  className="relative p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] min-w-[130px] flex-1 sm:flex-initial overflow-hidden"
+                  className="relative p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] min-w-[130px] flex-1 sm:flex-initial overflow-hidden shadow-sm dark:shadow-none"
                   style={{ boxShadow: `0 0 24px -8px ${colorVal}30` }}
                 >
                   {/* card shimmer top */}
                   <div className="absolute top-0 left-0 right-0 h-px opacity-40" style={{ background: `linear-gradient(90deg, transparent, ${colorVal}60, transparent)` }} />
-                  <div className="text-[10px] uppercase font-bold text-slate-500 font-mono tracking-wider">{label}</div>
-                  <div className={`text-2xl font-black font-mono mt-0.5 text-${color}-400`} style={{ color: colorVal }}>{value}</div>
+                  <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 font-mono tracking-wider">{label}</div>
+                  <div className={`text-2xl font-black font-mono mt-0.5 text-${color}-600 dark:text-${color}-400`} style={{ color: colorVal }}>{value}</div>
                 </div>
               ))}
             </div>
@@ -483,16 +483,16 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/abstention"
-                className="flex items-center gap-2 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold border border-blue-500/25 bg-blue-500/[0.07] text-blue-300 hover:bg-blue-500/[0.14] hover:border-blue-400/40 transition-all duration-300"
+                className="flex items-center gap-2 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold border border-blue-500/30 dark:border-blue-500/25 bg-blue-500/10 dark:bg-blue-500/[0.07] text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 dark:hover:bg-blue-500/[0.14] hover:border-blue-500/40 dark:hover:border-blue-400/40 transition-all duration-300"
               >
-                <ShieldCheck size={15} className="text-blue-400" />
+                <ShieldCheck size={15} className="text-blue-600 dark:text-blue-400" />
                 <span>Abstention Matrix</span>
               </Link>
               <Link
                 href="/graph"
-                className="flex items-center gap-2 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold border border-white/[0.08] bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white hover:border-white/[0.14] transition-all duration-300"
+                className="flex items-center gap-2 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold border border-slate-200 dark:border-white/[0.08] bg-slate-100 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/[0.14] transition-all duration-300"
               >
-                <Network size={15} className="text-emerald-400" />
+                <Network size={15} className="text-emerald-600 dark:text-emerald-400" />
                 <span>Graph Visualizer</span>
               </Link>
             </div>
@@ -502,16 +502,16 @@ export default function HomePage() {
         {/* ═══════════════ TEMPORAL SIMULATOR ═══════════════ */}
         <section
           className={`
-            relative rounded-3xl border border-white/[0.07] overflow-hidden grain-overlay
-            bg-[#080d18] p-6 sm:p-8 space-y-6
-            shadow-[0_0_60px_-20px_rgba(0,0,0,0.8)]
+            relative rounded-3xl border border-slate-200 dark:border-white/[0.07] overflow-hidden grain-overlay
+            bg-white dark:bg-[#080d18] p-6 sm:p-8 space-y-6
+            shadow-xl dark:shadow-[0_0_60px_-20px_rgba(0,0,0,0.8)]
             ${mounted ? 'anim-fade-up delay-5' : 'opacity-0'}
           `}
         >
           {/* Ambient glow */}
           <div className="absolute top-0 right-0 w-[300px] h-[200px] rounded-full bg-amber-500/5 blur-[60px] pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-[200px] h-[150px] rounded-full bg-sky-500/5 blur-[50px] pointer-events-none" />
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-white/[0.06] to-transparent" />
 
           {/* Header */}
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -521,13 +521,13 @@ export default function HomePage() {
                   className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 float-slow"
                   style={{ boxShadow: '0 0 16px -4px rgba(245,158,11,0.35)' }}
                 >
-                  <Zap size={15} className="text-amber-400" />
+                  <Zap size={15} className="text-amber-500 dark:text-amber-400" />
                 </div>
-                <h2 className="text-base sm:text-lg font-bold text-white tracking-wide font-heading">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-wide font-heading">
                   Temporal Memory Simulator
                 </h2>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 pl-10">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-500 pl-10">
                 See how HydraDB supersedes changing facts over time with recursive graph edges.
               </p>
             </div>
@@ -538,7 +538,7 @@ export default function HomePage() {
                 className={`px-4 py-2 rounded-xl text-xs font-bold font-mono flex items-center gap-2 border transition-all duration-300 cursor-pointer ${
                   isPlaying
                     ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-[0_0_20px_-4px_rgba(245,158,11,0.6)]'
-                    : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border-white/[0.08]'
+                    : 'bg-slate-100 dark:bg-white/[0.04] hover:bg-slate-200 dark:hover:bg-white/[0.08] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-white/[0.08]'
                 }`}
               >
                 <Play size={12} className={isPlaying ? 'fill-slate-950' : ''} />
@@ -546,7 +546,7 @@ export default function HomePage() {
               </button>
               <button
                 onClick={() => { setIsPlaying(false); setSimStep(1); }}
-                className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] text-slate-500 hover:text-slate-200 border border-white/[0.08] transition-all cursor-pointer"
+                className="p-2 rounded-xl bg-slate-100 dark:bg-white/[0.04] hover:bg-slate-200 dark:hover:bg-white/[0.09] text-slate-600 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-300 dark:border-white/[0.08] transition-all cursor-pointer"
                 title="Reset Simulator"
               >
                 <RotateCcw size={14} />
@@ -568,8 +568,8 @@ export default function HomePage() {
                   onClick={() => { setIsPlaying(false); setSimStep(step); }}
                   className={`relative p-4 rounded-2xl text-left border transition-all duration-350 cursor-pointer overflow-hidden ${
                     isActive
-                      ? 'border-white/[0.12] bg-white/[0.05]'
-                      : 'bg-white/[0.02] border-white/[0.05] text-slate-500 hover:bg-white/[0.04] hover:border-white/[0.08]'
+                      ? 'border-slate-300 dark:border-white/[0.12] bg-slate-100 dark:bg-white/[0.05]'
+                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.05] text-slate-600 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:border-slate-300 dark:hover:border-white/[0.08]'
                   }`}
                   style={isActive ? { boxShadow: `0 0 28px -8px ${colorVal}40` } : {}}
                 >
@@ -585,15 +585,15 @@ export default function HomePage() {
                   >
                     Step {step} · {label}
                   </span>
-                  <p className="text-xs sm:text-sm font-bold text-white/80 truncate">{quote}</p>
+                  <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-white/80 truncate">{quote}</p>
                 </button>
               );
             })}
           </div>
 
           {/* Graph Visualizer Simulation */}
-          <div className="relative z-10 p-5 sm:p-6 rounded-3xl bg-[#040710] border border-white/[0.05] flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="absolute inset-0 rounded-3xl" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px)', backgroundSize: '20px 20px', opacity: 0.04 }} />
+          <div className="relative z-10 p-5 sm:p-6 rounded-3xl bg-slate-50/80 dark:bg-[#040710] border border-slate-200 dark:border-white/[0.05] flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="absolute inset-0 rounded-3xl" style={{ backgroundImage: 'radial-gradient(circle, rgba(100,116,139,0.2) 1px, transparent 1px)', backgroundSize: '20px 20px', opacity: 0.08 }} />
 
             {/* Fact 1 */}
             <div
@@ -606,16 +606,16 @@ export default function HomePage() {
             >
               {simStep === 1 && <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />}
               <div className="flex items-center justify-between text-[10px] font-mono mb-2">
-                <span className="text-slate-500 font-bold">Fact #1 · Session 1</span>
+                <span className="text-slate-500 dark:text-slate-400 font-bold">Fact #1 · Session 1</span>
                 <span className={`font-black px-2 py-0.5 rounded text-[9px] tracking-wider ${
                   simStep === 1
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'bg-rose-500/20 text-rose-300'
+                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
                 }`}>
                   {simStep === 1 ? 'ACTIVE' : 'SUPERSEDED'}
                 </span>
               </div>
-              <p className={`text-xs sm:text-sm font-bold transition-all duration-300 ${simStep > 1 ? 'line-through text-slate-600' : 'text-white'}`}>
+              <p className={`text-xs sm:text-sm font-bold transition-all duration-300 ${simStep > 1 ? 'line-through text-slate-400 dark:text-slate-600' : 'text-slate-900 dark:text-white'}`}>
                 Alex lives in Rajshahi
               </p>
             </div>
@@ -624,7 +624,7 @@ export default function HomePage() {
             <div className="flex flex-col items-center justify-center shrink-0 gap-1.5">
               {simStep >= 2 ? (
                 <div className="flex flex-col items-center" style={{ animation: 'fadeIn 0.4s ease-out both' }}>
-                  <span className="text-[9px] font-mono font-black text-amber-300 uppercase tracking-[0.18em] px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 mb-2">
+                  <span className="text-[9px] font-mono font-black text-amber-700 dark:text-amber-300 uppercase tracking-[0.18em] px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 mb-2">
                     SUPERSEDES
                   </span>
                   <div className="relative w-16 h-[2px] overflow-hidden rounded-full">
@@ -640,7 +640,7 @@ export default function HomePage() {
                   </div>
                 </div>
               ) : (
-                <div className="w-10 h-px bg-white/10 rounded-full" />
+                <div className="w-10 h-px bg-slate-300 dark:bg-white/10 rounded-full" />
               )}
             </div>
 
@@ -649,44 +649,44 @@ export default function HomePage() {
               className={`relative p-4 rounded-2xl border transition-all duration-500 w-full md:w-60 overflow-hidden ${
                 simStep >= 2
                   ? 'bg-emerald-500/[0.07] border-emerald-500/40'
-                  : 'bg-white/[0.02] border-white/[0.04] opacity-30'
+                  : 'bg-slate-100 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.04] opacity-40'
               }`}
               style={simStep >= 2 ? { boxShadow: '0 0 20px -8px rgba(16,185,129,0.3)' } : {}}
             >
               {simStep >= 2 && <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />}
               <div className="flex items-center justify-between text-[10px] font-mono mb-2">
-                <span className="text-slate-500 font-bold">Fact #2 · Session 20</span>
+                <span className="text-slate-500 dark:text-slate-400 font-bold">Fact #2 · Session 20</span>
                 <span className={`font-black px-2 py-0.5 rounded text-[9px] tracking-wider ${
                   simStep >= 2
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'bg-white/5 text-slate-600'
+                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-slate-200 dark:bg-white/5 text-slate-600'
                 }`}>
                   {simStep >= 2 ? 'CURRENT' : 'PENDING'}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm font-bold text-white">Alex lives in Dhaka</p>
+              <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">Alex lives in Dhaka</p>
             </div>
 
             {/* Result Panel */}
-            <div className="relative w-full md:w-60 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] text-xs space-y-2 overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            <div className="relative w-full md:w-60 p-4 rounded-2xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.07] text-xs space-y-2 overflow-hidden shadow-sm dark:shadow-none">
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-300 dark:via-white/10 to-transparent" />
               <span className="text-[10px] font-mono uppercase font-bold text-slate-500 block">
                 {simStep === 3 ? '🎯 Query Result' : 'HydraDB State'}
               </span>
               {simStep === 1 && (
-                <p className="text-slate-400 leading-snug">Single active node in HydraDB graph.</p>
+                <p className="text-slate-600 dark:text-slate-400 leading-snug">Single active node in HydraDB graph.</p>
               )}
               {simStep === 2 && (
-                <p className="text-amber-300 leading-snug font-semibold">
-                  Fact #2 linked via <code className="font-mono font-bold text-amber-400">SUPERSEDES</code> edge.
+                <p className="text-amber-700 dark:text-amber-300 leading-snug font-semibold">
+                  Fact #2 linked via <code className="font-mono font-bold text-amber-600 dark:text-amber-400">SUPERSEDES</code> edge.
                 </p>
               )}
               {simStep === 3 && (
                 <div className="space-y-1.5">
-                  <p className="text-emerald-300 font-bold text-xs sm:text-sm">"Alex lives in Dhaka."</p>
-                  <div className="text-[10px] text-slate-500 font-mono flex justify-between pt-1.5 border-t border-white/[0.06]">
-                    <span>Confidence: <span className="text-emerald-400 font-bold">98%</span></span>
-                    <span className="text-rose-400 font-bold">Outdated filtered</span>
+                  <p className="text-emerald-700 dark:text-emerald-300 font-bold text-xs sm:text-sm">"Alex lives in Dhaka."</p>
+                  <div className="text-[10px] text-slate-500 font-mono flex justify-between pt-1.5 border-t border-slate-200 dark:border-white/[0.06]">
+                    <span>Confidence: <span className="text-emerald-600 dark:text-emerald-400 font-bold">98%</span></span>
+                    <span className="text-rose-600 dark:text-rose-400 font-bold">Outdated filtered</span>
                   </div>
                 </div>
               )}
@@ -700,35 +700,35 @@ export default function HomePage() {
             <div className="flex items-center gap-2 text-xs font-bold font-mono uppercase tracking-widest text-slate-500">
               <Database size={13} className="text-amber-500" />
               <span>Physical Cell-Level Isolation Demo</span>
-              <div className="h-px w-12 bg-gradient-to-r from-white/[0.06] to-transparent ml-1" />
+              <div className="h-px w-12 bg-gradient-to-r from-slate-200 dark:from-white/[0.06] to-transparent ml-1" />
             </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-mono font-bold">
-              <Cpu size={12} className="text-purple-400" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-400 text-xs font-mono font-bold">
+              <Cpu size={12} className="text-purple-600 dark:text-purple-400" />
               <span>SlateDB Multi-Cell Architecture</span>
             </div>
           </div>
 
-          <div className="relative rounded-3xl border border-white/[0.07] p-6 sm:p-8 bg-[#060a12] space-y-6 overflow-hidden shadow-2xl">
+          <div className="relative rounded-3xl border border-slate-200 dark:border-white/[0.07] p-6 sm:p-8 bg-white dark:bg-[#060a12] space-y-6 overflow-hidden shadow-xl dark:shadow-2xl">
             {/* Top highlight glow */}
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-white/[0.06]">
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-white font-heading flex items-center gap-2">
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white font-heading flex items-center gap-2">
                   Zero Cross-User Contamination Matrix
-                  <Sparkles size={14} className="text-purple-400" />
+                  <Sparkles size={14} className="text-purple-500 dark:text-purple-400" />
                 </h3>
-                <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
-                  Each (scope, cell) is an independently stored SlateDB database on disk. The HTTP API routes queries directly via <code className="font-mono text-purple-300">cell_id</code>, guaranteeing hardware-level physical separation rather than fragile WHERE-clause filters.
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                  Each (scope, cell) is an independently stored SlateDB database on disk. The HTTP API routes queries directly via <code className="font-mono text-purple-700 dark:text-purple-300">cell_id</code>, guaranteeing hardware-level physical separation rather than fragile WHERE-clause filters.
                 </p>
               </div>
 
               <button
                 onClick={() => fetchCellData(userA, userB)}
                 disabled={loadingCells}
-                className="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-white/[0.05] hover:bg-white/[0.10] text-slate-300 hover:text-white border border-white/[0.08] transition-all flex items-center gap-2 self-start md:self-auto cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-slate-100 dark:bg-white/[0.05] hover:bg-slate-200 dark:hover:bg-white/[0.10] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-white/[0.08] transition-all flex items-center gap-2 self-start md:self-auto cursor-pointer"
               >
-                <RefreshCw size={13} className={loadingCells ? 'animate-spin text-purple-400' : 'text-slate-400'} />
+                <RefreshCw size={13} className={loadingCells ? 'animate-spin text-purple-600 dark:text-purple-400' : 'text-slate-500'} />
                 <span>Re-verify Cells</span>
               </button>
             </div>
@@ -736,45 +736,45 @@ export default function HomePage() {
             {/* User Selectors */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* User A Selector */}
-              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-2">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.06] space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Primary Agent (User A):
                   </label>
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30">
                     HydraDB {userA ? getCellIdFromUserId(userA) : 'cell-0'}
                   </span>
                 </div>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={14} />
                   <input
                     type="text"
                     value={userA}
                     onChange={(e) => setUserA(e.target.value)}
                     placeholder="Enter user ID (e.g., alex_123)"
-                    className="w-full input-field py-2 px-3 pl-10 text-xs bg-[#0b101d] text-white border-white/[0.08] font-medium"
+                    className="w-full input-field py-2 px-3 pl-10 text-xs bg-white dark:bg-[#0b101d] text-slate-900 dark:text-white border-slate-300 dark:border-white/[0.08] font-medium"
                   />
                 </div>
               </div>
 
               {/* User B Selector */}
-              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-2">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.06] space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Isolated Contrast (User B):
                   </label>
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                     HydraDB {userB ? getCellIdFromUserId(userB) : 'cell-0'}
                   </span>
                 </div>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={14} />
                   <input
                     type="text"
                     value={userB}
                     onChange={(e) => setUserB(e.target.value)}
                     placeholder="Enter user ID (e.g., jordan_456)"
-                    className="w-full input-field py-2 px-3 pl-10 text-xs bg-[#0b101d] text-white border-white/[0.08] font-medium"
+                    className="w-full input-field py-2 px-3 pl-10 text-xs bg-white dark:bg-[#0b101d] text-slate-900 dark:text-white border-slate-300 dark:border-white/[0.08] font-medium"
                   />
                 </div>
               </div>
@@ -783,41 +783,41 @@ export default function HomePage() {
             {/* Side-by-Side Graph Comparison Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* User A Panel */}
-              <div className="p-5 rounded-2xl bg-[#080d18] border border-blue-500/25 space-y-3.5 shadow-lg relative overflow-hidden">
-                <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+              <div className="p-5 rounded-2xl bg-slate-50 dark:bg-[#080d18] border border-blue-500/30 dark:border-blue-500/25 space-y-3.5 shadow-sm dark:shadow-lg relative overflow-hidden">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/[0.06]">
                   <div className="flex items-center gap-2">
-                    <HardDrive size={15} className="text-blue-400" />
-                    <span className="text-xs font-bold text-white font-heading">
+                    <HardDrive size={15} className="text-blue-500 dark:text-blue-400" />
+                    <span className="text-xs font-bold text-slate-900 dark:text-white font-heading">
                       {userA || 'User A'}&apos;s Knowledge Graph
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30">
                     {userA ? getCellIdFromUserId(userA) : 'cell-0'}
                   </span>
                 </div>
 
-                <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono">
+                <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center justify-between font-mono">
                   <span>Cell ID: {userA ? getCellIdFromUserId(userA) : '—'}</span>
                   <span>{graphA?.nodes.length || 0} Nodes · {graphA?.edges.length || 0} Edges</span>
                 </div>
 
                 {/* Subgraph Nodes */}
-                <div className="p-3 rounded-xl bg-black/40 border border-white/[0.05] space-y-2 max-h-48 overflow-y-auto">
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/[0.05] space-y-2 max-h-48 overflow-y-auto">
                   <span className="text-[10px] font-mono uppercase text-slate-500 font-bold block">
                     SlateDB Partition Entities & Facts:
                   </span>
                   {graphA?.nodes && graphA.nodes.length > 0 ? (
                     graphA.nodes.map((n: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-white/[0.03] border border-white/[0.04]">
-                        <span className="text-slate-300 font-medium truncate pr-2">{n.label || n.data?.content || `Node #${n.id}`}</span>
-                        <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 shrink-0">
+                      <div key={idx} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.04]">
+                        <span className="text-slate-800 dark:text-slate-300 font-medium truncate pr-2">{n.label || n.data?.content || `Node #${n.id}`}</span>
+                        <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 shrink-0">
                           {n.type || 'Fact'}
                         </span>
                       </div>
                     ))
                   ) : (
                     <div className="text-center py-6 text-slate-500 text-xs">
-                      <Search className="mx-auto mb-2 text-slate-600" size={24} />
+                      <Search className="mx-auto mb-2 text-slate-400 dark:text-slate-600" size={24} />
                       <p>No data found for this user.</p>
                       <p className="mt-1">Enter a user ID above and click "Re-verify Cells" to load real data from HydraDB.</p>
                     </div>
@@ -826,41 +826,41 @@ export default function HomePage() {
               </div>
 
               {/* User B Panel */}
-              <div className="p-5 rounded-2xl bg-[#080d18] border border-amber-500/25 space-y-3.5 shadow-lg relative overflow-hidden">
-                <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+              <div className="p-5 rounded-2xl bg-slate-50 dark:bg-[#080d18] border border-amber-500/30 dark:border-amber-500/25 space-y-3.5 shadow-sm dark:shadow-lg relative overflow-hidden">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/[0.06]">
                   <div className="flex items-center gap-2">
-                    <HardDrive size={15} className="text-amber-400" />
-                    <span className="text-xs font-bold text-white font-heading">
+                    <HardDrive size={15} className="text-amber-500 dark:text-amber-400" />
+                    <span className="text-xs font-bold text-slate-900 dark:text-white font-heading">
                       {userB || 'User B'}&apos;s Knowledge Graph
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                     {userB ? getCellIdFromUserId(userB) : 'cell-0'}
                   </span>
                 </div>
 
-                <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono">
+                <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center justify-between font-mono">
                   <span>Cell ID: {userB ? getCellIdFromUserId(userB) : '—'}</span>
                   <span>{graphB?.nodes.length || 0} Nodes · {graphB?.edges.length || 0} Edges</span>
                 </div>
 
                 {/* Subgraph Nodes */}
-                <div className="p-3 rounded-xl bg-black/40 border border-white/[0.05] space-y-2 max-h-48 overflow-y-auto">
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/[0.05] space-y-2 max-h-48 overflow-y-auto">
                   <span className="text-[10px] font-mono uppercase text-slate-500 font-bold block">
                     SlateDB Partition Entities & Facts:
                   </span>
                   {graphB?.nodes && graphB.nodes.length > 0 ? (
                     graphB.nodes.map((n: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-white/[0.03] border border-white/[0.04]">
-                        <span className="text-slate-300 font-medium truncate pr-2">{n.label || n.data?.content || `Node #${n.id}`}</span>
-                        <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 shrink-0">
+                      <div key={idx} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.04]">
+                        <span className="text-slate-800 dark:text-slate-300 font-medium truncate pr-2">{n.label || n.data?.content || `Node #${n.id}`}</span>
+                        <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 shrink-0">
                           {n.type || 'Fact'}
                         </span>
                       </div>
                     ))
                   ) : (
                     <div className="text-center py-6 text-slate-500 text-xs">
-                      <Search className="mx-auto mb-2 text-slate-600" size={24} />
+                      <Search className="mx-auto mb-2 text-slate-400 dark:text-slate-600" size={24} />
                       <p>No data found for this user.</p>
                       <p className="mt-1">Enter a user ID above and click "Re-verify Cells" to load real data from HydraDB.</p>
                     </div>
@@ -870,19 +870,19 @@ export default function HomePage() {
             </div>
 
             {/* Physical Storage Proof Banner */}
-            <div className="p-4 rounded-2xl bg-emerald-500/[0.07] border border-emerald-500/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="p-4 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/[0.07] border border-emerald-500/30 dark:border-emerald-500/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2.5">
-                <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <div>
-                  <span className="font-bold text-emerald-200">
+                  <span className="font-bold text-emerald-900 dark:text-emerald-200">
                     Physical SlateDB Overlap: 0.0% · Zero Cross-Cell Contamination Verified
                   </span>
-                  <p className="text-[11px] text-emerald-400/80 font-mono mt-0.5">
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400/80 font-mono mt-0.5">
                     HTTP query routing matches target cell_id directly into /data/store/{userA ? getCellIdFromUserId(userA) : 'cell-0'} vs /data/store/{userB ? getCellIdFromUserId(userB) : 'cell-0'}
                   </p>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
+              <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
                 STRICT HARDWARE ISOLATION
               </span>
             </div>
@@ -894,7 +894,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2 text-xs font-bold font-mono uppercase tracking-widest text-slate-500">
             <Zap size={13} className="text-amber-500" />
             <span>Core Interactive Modules</span>
-            <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-2" />
+            <div className="flex-1 h-px bg-gradient-to-r from-slate-200 dark:from-white/[0.06] to-transparent ml-2" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -907,7 +907,8 @@ export default function HomePage() {
                   href={action.href}
                   className={`
                     group relative card-glow-border flex flex-col justify-between
-                    p-5 rounded-2xl border border-white/[0.07] bg-[#080d18]
+                    p-5 rounded-2xl border border-slate-200 dark:border-white/[0.07] bg-white dark:bg-[#080d18]
+                    shadow-sm dark:shadow-none
                     transition-all duration-300 cursor-pointer overflow-hidden
                     ${colors.card} ${colors.glow}
                     hover:-translate-y-0.5
@@ -915,7 +916,7 @@ export default function HomePage() {
                   style={{ animationDelay: `${i * 0.06}s` }}
                 >
                   {/* Hover top-edge glow */}
-                  <div className={`absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-white/20 to-transparent`} />
+                  <div className={`absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-slate-300 dark:via-white/20 to-transparent`} />
 
                   <div className="space-y-3.5">
                     <div className="flex items-center justify-between">
@@ -927,16 +928,16 @@ export default function HomePage() {
                       </div>
                     </div>
                     <div>
-                      <h3 className={`text-sm sm:text-base font-bold text-white/90 ${colors.hover} transition-colors font-heading`}>
+                      <h3 className={`text-sm sm:text-base font-bold text-slate-900 dark:text-white/90 ${colors.hover} transition-colors font-heading`}>
                         {action.title}
                       </h3>
-                      <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                      <p className="text-xs text-slate-600 dark:text-slate-500 mt-1.5 leading-relaxed">
                         {action.description}
                       </p>
                     </div>
                   </div>
 
-                  <div className={`pt-4 flex items-center justify-end text-xs font-bold text-slate-600 group-hover:text-amber-400 transition-colors gap-1.5`}>
+                  <div className={`pt-4 flex items-center justify-end text-xs font-bold text-slate-500 dark:text-slate-600 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors gap-1.5`}>
                     <span>Explore Module</span>
                     <ArrowRight size={12} className="transition-transform duration-300 group-hover:translate-x-1" />
                   </div>
@@ -952,22 +953,22 @@ export default function HomePage() {
             <div className="flex items-center gap-2 text-xs font-bold font-mono uppercase tracking-widest text-slate-500">
               <Code2 size={13} className="text-amber-500" />
               <span>Developer Integration</span>
-              <div className="h-px w-16 bg-gradient-to-r from-white/[0.06] to-transparent ml-1" />
+              <div className="h-px w-16 bg-gradient-to-r from-slate-200 dark:from-white/[0.06] to-transparent ml-1" />
             </div>
             <span
-              className="text-xs font-mono text-emerald-300 font-bold px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/25"
+              className="text-xs font-mono text-emerald-700 dark:text-emerald-300 font-bold px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/25"
               style={{ boxShadow: '0 0 16px -6px rgba(16,185,129,0.4)' }}
             >
               pip install memorygraph
             </span>
           </div>
 
-          <div className="relative rounded-3xl border border-white/[0.07] overflow-hidden bg-[#040710] shadow-[0_0_80px_-20px_rgba(0,0,0,0.9)] code-scanline">
+          <div className="relative rounded-3xl border border-slate-200 dark:border-white/[0.07] overflow-hidden bg-white dark:bg-[#040710] shadow-xl dark:shadow-[0_0_80px_-20px_rgba(0,0,0,0.9)] code-scanline">
             {/* Top edge highlight */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400/20 to-transparent z-10" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/30 dark:via-amber-400/20 to-transparent z-10" />
 
             {/* Tab Bar */}
-            <div className="flex flex-wrap items-center justify-between px-5 py-3.5 bg-[#070b14] border-b border-white/[0.06] gap-3">
+            <div className="flex flex-wrap items-center justify-between px-5 py-3.5 bg-slate-50 dark:bg-[#070b14] border-b border-slate-200 dark:border-white/[0.06] gap-3">
               <div className="flex items-center gap-4">
                 {/* Mac-style Window Controls */}
                 <div className="hidden sm:flex items-center gap-1.5">
@@ -977,7 +978,7 @@ export default function HomePage() {
                 </div>
 
                 {/* Language Tabs */}
-                <div className="flex gap-1 bg-black/30 p-1 rounded-xl border border-white/[0.06]">
+                <div className="flex gap-1 bg-slate-200/80 dark:bg-black/30 p-1 rounded-xl border border-slate-300 dark:border-white/[0.06]">
                   {codeTabs.map((tab) => (
                     <button
                       key={tab.key}
@@ -985,7 +986,7 @@ export default function HomePage() {
                       className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all duration-200 cursor-pointer ${
                         activeCodeTab === tab.key
                           ? 'bg-amber-500 text-slate-950 shadow-[0_0_14px_-2px_rgba(245,158,11,0.6)]'
-                          : 'text-slate-500 hover:text-slate-200 hover:bg-white/[0.05]'
+                          : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-300/60 dark:hover:bg-white/[0.05]'
                       }`}
                     >
                       {tab.label}
@@ -995,14 +996,14 @@ export default function HomePage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="hidden md:inline text-[11px] font-mono text-slate-600 font-bold uppercase tracking-wider">
+                <span className="hidden md:inline text-[11px] font-mono text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                   {activeCodeTab === 'curl' ? 'BASH / REST' : activeCodeTab === 'opencypher' ? 'OPENCYPHER' : 'PYTHON 3.11+'}
                 </span>
                 <button
                   onClick={handleCopyCode}
-                  className="flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.10] text-slate-300 hover:text-white border border-white/[0.08] transition-all font-mono font-bold cursor-pointer"
+                  className="flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl bg-white dark:bg-white/[0.08] hover:bg-slate-100 dark:hover:bg-white/[0.14] text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-white/[0.12] transition-all font-mono font-bold cursor-pointer shadow-sm dark:shadow-none"
                 >
-                  {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                  {copied ? <Check size={12} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={12} />}
                   <span>{copied ? 'Copied!' : 'Copy'}</span>
                 </button>
               </div>

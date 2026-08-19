@@ -321,10 +321,11 @@ ORDER BY f.valid_at DESC
 
 ```cypher
 // 2. Aggregate supporting fact density & relationship coverage for confidence calibration (traversal.py)
-MATCH (f:Fact)-[:OCCURRED_IN]->(:Session {user_id: $user_id})
-WHERE f.id IN $fact_ids
-OPTIONAL MATCH (f)-[:MENTIONS]->(e:Entity {user_id: $user_id})
-OPTIONAL MATCH (e)<-[:MENTIONS]-(support:Fact)-[:OCCURRED_IN]->(:Session {user_id: $user_id})
+UNWIND $fact_ids AS target_id
+MATCH (f:Fact)-[:OCCURRED_IN]->(sess:Session {user_id: $user_id})
+WHERE toString(f.id) = target_id
+OPTIONAL MATCH (f)-[:MENTIONS]->(e:Entity)
+OPTIONAL MATCH (e)<-[:MENTIONS]-(support:Fact)-[:OCCURRED_IN]->(sess2:Session {user_id: $user_id})
 RETURN f.id AS fact_id,
        count(DISTINCT support) AS supporting_facts,
        count(DISTINCT e) AS related_entities

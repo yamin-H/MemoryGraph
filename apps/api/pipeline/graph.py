@@ -410,12 +410,13 @@ def parse_question_node(state: RetrievalState) -> dict[str, Any]:
 
     api_key = os.environ.get("GROQ_API_KEY")
     question = state["question"]
+    user_id = state.get("user_id") or "user"
 
     from pipeline.retrieval.parser import _fallback_parse_question, _expand_keywords
 
     if not api_key or api_key.startswith("gsk_mock_") or api_key.startswith("gsk_demo_") or api_key.strip() == "":
         print("       GROQ_API_KEY not provided — using rule-based question parser.")
-        parsed = _fallback_parse_question(question)
+        parsed = _fallback_parse_question(question, user_id=user_id)
         parsed["keywords"] = _expand_keywords(question, parsed.get("keywords", []))
         print(f"       Entity: {parsed.get('entity_name')}, Type: {parsed.get('question_type')}")
         return {"parsed_question": parsed}
@@ -423,14 +424,14 @@ def parse_question_node(state: RetrievalState) -> dict[str, Any]:
     client = Groq(api_key=api_key)
 
     try:
-        parsed = with_retry(parse_question, client, question)
+        parsed = with_retry(parse_question, client, question, user_id=user_id)
         # Always expand keywords with domain synonyms, regardless of which parser ran
         parsed["keywords"] = _expand_keywords(question, parsed.get("keywords", []))
         print(f"       Entity: {parsed.get('entity_name')}, Type: {parsed.get('question_type')}")
         return {"parsed_question": parsed}
     except Exception as e:
         print(f"       Groq parse failed ({e}) — falling back to rule-based parser.")
-        parsed = _fallback_parse_question(question)
+        parsed = _fallback_parse_question(question, user_id=user_id)
         parsed["keywords"] = _expand_keywords(question, parsed.get("keywords", []))
         return {"parsed_question": parsed}
 
@@ -561,7 +562,7 @@ def generate_answer_node(state: RetrievalState) -> dict[str, Any]:
 Rules:
 - Answer the question directly in 1-3 clear sentences using ONLY the verified facts provided.
 - Do not add information not present in the facts.
-- IMPORTANT: If the question is about a specific person (e.g. "Alex"), treat all facts referring to "User", "I", "me", "my" as referring to that person.
+- IMPORTANT: If the question is about a specific user or named person, treat all facts referring to "User", "I", "me", "my" as referring to that person.
 - If facts refer to a person by name, use that name. Otherwise answer generically."""
 
             user_prompt = f"""Question: {question}

@@ -226,10 +226,11 @@ def write_to_hydradb(
             entity_anchor_id = entity_id + 1000000
 
             run_q(
-                "MERGE (e:Entity {id: $entity_id, name: $name, type: $type})-[:ENTITY_ANCHOR]->(ea:EntityAnchor {id: $anchor_id})",
+                "MERGE (e:Entity {id: $entity_id, name: $name, type: $type, user_id: $user_id})-[:ENTITY_ANCHOR]->(ea:EntityAnchor {id: $anchor_id})",
                 entity_id=entity_id,
                 name=entity_name,
                 type=entity_type,
+                user_id=user_id,
                 anchor_id=entity_anchor_id,
             )
             nodes_created += 2
@@ -255,9 +256,10 @@ def write_to_hydradb(
                 entity_id = generate_int_id(f"entity:{user_id}:{entity_name}")
                 entity_map[entity_name] = entity_id
                 run_q(
-                    "MERGE (e:Entity {id: $entity_id, name: $name, type: 'person'})-[:ENTITY_ANCHOR]->(ea:EntityAnchor {id: $anchor_id})",
+                    "MERGE (e:Entity {id: $entity_id, name: $name, type: 'person', user_id: $user_id})-[:ENTITY_ANCHOR]->(ea:EntityAnchor {id: $anchor_id})",
                     entity_id=entity_id,
                     name=entity_name,
+                    user_id=user_id,
                     anchor_id=entity_id + 1000000,
                 )
 

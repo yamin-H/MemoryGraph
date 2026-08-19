@@ -85,7 +85,7 @@ export function ChatInterface({ onAnswerChange }: ChatInterfaceProps) {
         setLoading(false);
       }
     },
-    [input, loading, onAnswerChange]
+    [input, loading, onAnswerChange, userId]
   );
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {

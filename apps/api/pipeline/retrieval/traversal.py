@@ -84,8 +84,8 @@ def traverse_for_question(
             )
 
             target_names = (
-                {entity_name.lower(), "user", "alex", str(user_id or "").lower()}
-                if entity_name.lower() in ("alex", "user", "me", "i", str(user_id or "").lower())
+                {entity_name.lower(), "user", str(user_id or "").lower()}
+                if entity_name.lower() in ("user", "me", "i", str(user_id or "").lower())
                 else {entity_name.lower()}
             )
             for record in result:
@@ -181,7 +181,7 @@ def traverse_for_question(
     if keywords and facts:
         attr_keywords = [
             kw.lower() for kw in keywords
-            if kw.lower() not in (str(entity_name or "").lower(), "user", "who", "what", "where", "tell", "about", "is", "alex", "now", "currently", "current")
+            if kw.lower() not in (str(entity_name or "").lower(), "user", "who", "what", "where", "tell", "about", "is", str(user_id or "").lower(), "now", "currently", "current")
         ]
         if attr_keywords:
             filtered = []
@@ -202,7 +202,7 @@ def get_confidence_evidence(
     user_id: str = "anonymous",
 ) -> dict[str, dict[str, int]]:
     """Retrieve verified graph structure evidence for confidence calculation."""
-    fact_ids = [fact.get("fact_id") for fact in facts if fact.get("fact_id") is not None]
+    fact_ids = [str(fact.get("fact_id")) for fact in facts if fact.get("fact_id") is not None]
     if not fact_ids:
         return {}
 
@@ -211,14 +211,13 @@ def get_confidence_evidence(
         try:
             result = session.run(
                 "UNWIND $fact_ids AS target_id "
-                "MATCH (f:Fact)-[:OCCURRED_IN]->(sess:Session) "
-                "WHERE sess.user_id = $user_id AND f.id = target_id "
+                "MATCH (f:Fact)-[:OCCURRED_IN]->(sess:Session {user_id: $user_id}) "
+                "WHERE toString(f.id) = target_id "
                 "OPTIONAL MATCH (f)-[:MENTIONS]->(e:Entity) "
-                "OPTIONAL MATCH (e)<-[:MENTIONS]-(support:Fact)-[:OCCURRED_IN]->(sess2:Session) "
-                "WHERE (e IS NULL OR e.user_id = $user_id) AND (sess2 IS NULL OR sess2.user_id = $user_id) "
+                "OPTIONAL MATCH (e)<-[:MENTIONS]-(support:Fact)-[:OCCURRED_IN]->(sess2:Session {user_id: $user_id}) "
                 "RETURN f.id AS fact_id, count(DISTINCT support) AS supporting_facts, "
                 "count(DISTINCT e) AS related_entities",
-                fact_ids=fact_ids,
+                fact_ids=[str(fid) for fid in fact_ids],
                 user_id=str(user_id or "anonymous"),
             )
             for record in result:

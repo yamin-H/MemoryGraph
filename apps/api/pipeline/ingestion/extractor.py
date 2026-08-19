@@ -139,7 +139,7 @@ def _rule_based_fallback_facts(session: dict[str, Any]) -> list[dict[str, Any]]:
         })
 
     # 3. Pet / Possession
-    pet_match = re.search(r"(?:have a|own a|got a)\s+([A-Za-z\s]+?)\s+(?:named|called)\s+([A-Za-z]+)", all_user_text, re.IGNORECASE)
+    pet_match = re.search(r"(?:have a|have an|own a|own an|got a|got an|adopted a|adopted an|have an adopted)\s+([A-Za-z\s]+?)\s+(?:named|called)\s+([A-Za-z]+)", all_user_text, re.IGNORECASE)
     if pet_match:
         pet_type = pet_match.group(1).strip()
         pet_name = pet_match.group(2).strip()

@@ -42,7 +42,7 @@ MERGE (f:Fact {id: $fact_id, content: $content, confidence: $confidence, is_curr
 # Create an Entity node
 # Represents a person, place, thing, or concept mentioned in facts
 CREATE_ENTITY = """
-MERGE (e:Entity {id: $entity_id, name: $name, type: $entity_type})-[:ENTITY_ANCHOR]->(ea:EntityAnchor {id: $anchor_id})
+MERGE (e:Entity {id: $entity_id, name: $name, type: $entity_type, user_id: $user_id})-[:ENTITY_ANCHOR]->(ea:EntityAnchor {id: $anchor_id})
 """
 
 # -----------------------------------------------------------------------------
