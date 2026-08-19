@@ -194,7 +194,7 @@ RETURN path`;
           </div>
 
           {/* Empty State */}
-          {data.paths_found === 0 && (
+          {data.nodes.length === 0 && data.paths_found === 0 && (
             <div className="p-12 rounded-3xl glass-card border border-slate-200 dark:border-white/[0.08] text-center space-y-3 max-w-2xl mx-auto">
               <GitFork size={32} className="mx-auto text-slate-400 opacity-60" />
               <h3 className="text-sm font-bold text-slate-800 dark:text-white">No Connected Paths Discovered</h3>
@@ -205,7 +205,7 @@ RETURN path`;
           )}
 
           {/* Graph & Paths Grid */}
-          {data.paths_found > 0 && (
+          {(data.nodes.length > 0 || data.paths_found > 0) && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left Column: Visual Subgraph Topology & Relationship Matrix */}
               <div className="lg:col-span-2 space-y-4">

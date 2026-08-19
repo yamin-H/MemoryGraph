@@ -32,31 +32,39 @@ def _fallback_parse_question(question: str) -> dict[str, Any]:
     else:
         for match in re.finditer(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", normalized):
             candidate = match.group(0)
-            if candidate.lower() not in {"where", "what", "who", "when", "how", "which", "this", "that", "there", "here", "hello", "hi"}:
+            if candidate.lower() not in {
+                "where", "what", "who", "when", "how", "which", "why", "this", "that", "there", "here", "hello", "hi",
+                "summarize", "tell", "show", "describe", "list", "explain", "please", "give", "find", "get", "recall"
+            }:
                 if candidate not in entities:
                     entities.append(candidate)
         if entities:
             entity_name = entities[0]
 
     keywords: list[str] = []
-    if any(phrase in lower_question for phrase in ["name", "who am i", "called"]):
-        keywords.extend(["name"])
+    words = re.findall(r"\b[a-zA-Z]{3,}\b", lower_question)
+    stop_words = {"what", "when", "where", "which", "who", "whom", "whose", "why", "how", "this", "that", "these", "those", "does", "have", "with", "from", "alex", "user", "about", "tell", "the", "and"}
+    for w in words:
+        if w not in stop_words and w not in keywords:
+            keywords.append(w)
+
     if any(phrase in lower_question for phrase in ["live", "lives", "reside", "resides", "home", "location", "city", "country"]):
-        keywords.extend(["live", "location"])
-    if any(phrase in lower_question for phrase in ["work", "works", "job", "role", "profession", "career", "engineer"]):
-        keywords.extend(["work", "job"])
-    if any(phrase in lower_question for phrase in ["dog", "cat", "pet", "favorite", "color"]):
-        keywords.extend(["pet", "dog", "cat"])
+        keywords.extend(["live", "lives", "lived", "location", "city", "reside", "home"])
+    if any(phrase in lower_question for phrase in ["work", "works", "job", "role", "profession", "career", "engineer", "occupation", "employment"]):
+        keywords.extend(["work", "works", "worked", "job", "career", "engineer", "profession", "occupation", "software"])
+    if any(phrase in lower_question for phrase in ["dog", "cat", "pet", "animal", "puppy", "kitten"]):
+        keywords.extend(["pet", "dog", "cat", "animal", "puppy", "kitten", "mochi", "pixel"])
+    if any(phrase in lower_question for phrase in ["car", "vehicle", "automobile", "drive"]):
+        keywords.extend(["car", "vehicle", "automobile", "drive"])
+
     keywords = list(dict.fromkeys(keywords))
 
-    if re.search(r"\b(?:where|live|lives|home|reside|resides|name|who|job|work)\b", lower_question):
-        question_type = "current_fact"
-    elif re.search(r"\b(?:before|previous|used\s+to|earlier|old)\b", lower_question):
+    if re.search(r"\b(?:before|previous|used\s+to|earlier|old|past)\b", lower_question):
         question_type = "historical_fact"
-    elif re.search(r"\b(?:jobs|job|work|career|profession|roles)\b", lower_question):
+    elif re.search(r"\b(?:jobs|career|all|history|timeline|summarize)\b", lower_question):
         question_type = "multi_session_synthesis"
     else:
-        question_type = "absent_information"
+        question_type = "current_fact"
 
     return {
         "entity_name": entity_name,

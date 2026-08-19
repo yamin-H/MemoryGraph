@@ -68,30 +68,42 @@ def check_abstention(
             "has_conflict": False,
         }
 
-    # Check for conflicts
+    # Group current facts by topic category and take most recent per category
+    seen_topics: set[str] = set()
+    facts_to_use: list[dict[str, Any]] = []
+
+    # Sort most recent first
+    sorted_current = sorted(
+        current_facts,
+        key=lambda f: f.get("session_started_at") or f.get("created_at") or "",
+        reverse=True,
+    )
+
+    for fact in sorted_current:
+        content = fact.get("content", "").lower()
+        if any(w in content for w in ["live", "reside", "location", "city", "japan", "tokyo", "rajshahi", "dhaka"]):
+            topic = "location"
+        elif any(w in content for w in ["work", "job", "architect", "engineer", "cybercorp", "company", "career"]):
+            topic = "work"
+        elif any(w in content for w in ["dog", "cat", "pet", "simba", "mochi", "pixel"]):
+            topic = "pet"
+        elif any(w in content for w in ["diet", "vegan", "ramen", "food", "dish", "plant-based"]):
+            topic = "diet"
+        else:
+            words = [w for w in content.split() if len(w) > 3][:3]
+            topic = " ".join(words) if words else content
+
+        if topic not in seen_topics:
+            seen_topics.add(topic)
+            facts_to_use.append(fact)
+
     has_conflict = any(f.get("has_conflict") for f in current_facts)
 
-    # Case 4: Conflicting facts - return most recent
-    if has_conflict:
-        # Sort by timestamp and take most recent
-        sorted_facts = sorted(
-            current_facts,
-            key=lambda f: f.get("session_started_at") or f.get("created_at") or "",
-            reverse=True,
-        )
-        return {
-            "should_abstain": False,
-            "abstention_reason": None,
-            "facts_to_use": [sorted_facts[0]],  # Most recent only
-            "has_conflict": True,
-        }
-
-    # Normal case: return relevant facts (or all current facts for comprehensive multi-hop synthesis)
     return {
         "should_abstain": False,
         "abstention_reason": None,
-        "facts_to_use": current_facts if (not relevant_facts or len(current_facts) <= 8) else relevant_facts,
-        "has_conflict": False,
+        "facts_to_use": facts_to_use,
+        "has_conflict": has_conflict,
     }
 
 

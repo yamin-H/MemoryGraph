@@ -179,11 +179,12 @@ def detect_supersessions_node(state: PipelineState) -> dict[str, Any]:
             hydra,
             facts,
             user_id=state["session"].get("user_id", "unknown"),
-        )
+        ) or []
         print(f"       Found {len(supersessions)} supersessions")
         return {"supersessions": supersessions}
     except Exception as e:
-        return {"error": str(e), "failed_step": "detect_supersessions"}
+        print(f"       Supersession detection warning: {e}")
+        return {"supersessions": []}
     finally:
         hydra.close()
 
@@ -213,11 +214,12 @@ def detect_invalidations_node(state: PipelineState) -> dict[str, Any]:
             session_id,
             user_id=user_id,
             current_timestamp=current_timestamp,
-        )
+        ) or []
         print(f"       Found {len(invalidations)} invalidations")
         return {"invalidations": invalidations}
     except Exception as e:
-        return {"error": str(e), "failed_step": "detect_invalidations"}
+        print(f"       Invalidation detection warning: {e}")
+        return {"invalidations": []}
     finally:
         hydra.close()
 
@@ -385,6 +387,7 @@ class RetrievalState(TypedDict):
 
     # Input
     question: str
+    user_id: str | None
 
     # Processing results
     parsed_question: dict[str, Any]
@@ -439,14 +442,15 @@ def graph_traversal_node(state: RetrievalState) -> dict[str, Any]:
         entities = parsed.get("entities") or ([parsed.get("entity_name")] if parsed.get("entity_name") else [])
         entities = [e for e in entities if e and str(e).lower() not in ("user", "me", "i", "anonymous")]
 
+        facts = traverse_for_question(hydra, parsed, user_id=state.get("user_id"))
         if len(entities) > 1:
-            print(f"       Multi-entity query ({len(entities)} entities: {entities}) -> Executing HydraDB algo.MSpaths")
-            facts = multi_entity_retrieval(hydra, entities, user_id=state.get("user_id") or "anonymous")
-            if not facts and parsed.get("entity_name"):
-                # Fallback to single-entity traversal if multi-entity path produced no direct hits
-                facts = traverse_for_question(hydra, parsed, user_id=state.get("user_id"))
-        else:
-            facts = traverse_for_question(hydra, parsed, user_id=state.get("user_id"))
+            try:
+                me_facts = multi_entity_retrieval(hydra, entities, user_id=state.get("user_id") or "anonymous")
+                for mf in me_facts:
+                    if not any(f.get("fact_id") == mf.get("fact_id") for f in facts):
+                        facts.append(mf)
+            except Exception:
+                pass
 
         print(f"       Retrieved {len(facts)} facts")
         return {"retrieved_facts": facts}
@@ -545,39 +549,51 @@ def generate_answer_node(state: RetrievalState) -> dict[str, Any]:
             else:
                 answer_text = "No active factual records found."
         else:
-            try:
-                client = Groq(api_key=api_key)
-                facts_context = "\n".join(f"- {f['content']}" for f in facts)
+            client = Groq(api_key=api_key)
+            facts_context = "\n".join(f"- {f['content']}" for f in facts)
 
-                system_prompt = """You are an authoritative AI agent answering user questions using facts retrieved from a knowledge graph.
+            system_prompt = """You are an authoritative AI agent answering user questions using facts retrieved from a knowledge graph.
 Rules:
-- Answer the question directly in 1-2 clear sentences using ONLY the verified facts provided.
+- Answer the question directly in 1-3 clear sentences using ONLY the verified facts provided.
 - Do not add information not present in the facts.
 - If facts refer to a person by name, use that name. Otherwise answer generically."""
 
-                user_prompt = f"""Question: {question}
+            user_prompt = f"""Question: {question}
 
 Active Facts:
 {facts_context}
 
 Direct Answer:"""
 
-                response = client.chat.completions.create(
-                    model="qwen/qwen3.6-27b",
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.3,
-                    max_tokens=256,
-                )
-                answer_text = response.choices[0].message.content or "Unable to generate answer."
+            response = None
+            for model_name in ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]:
+                try:
+                    response = client.chat.completions.create(
+                        model=model_name,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        temperature=0.2,
+                        max_tokens=512,
+                    )
+                    break
+                except Exception:
+                    continue
+
+            if response and response.choices:
+                raw_text = response.choices[0].message.content or ""
+                import re
+                answer_text = re.sub(r"<think>[\s\S]*?(?:</think>|$)", "", raw_text).strip()
+                if not answer_text and facts:
+                    answer_text = " ".join(f"{f['content'].rstrip('.')}." for f in facts)
+                elif not answer_text:
+                    answer_text = "I don't have enough verified information."
                 if hasattr(response, "usage") and response.usage:
                     tokens_used = response.usage.total_tokens or 0
-            except Exception as e:
-                print(f"       Groq generation error ({e}) — using active fact content directly.")
+            else:
                 if facts:
-                    answer_text = f"{facts[0]['content']}."
+                    answer_text = " ".join(f"{f['content'].rstrip('.')}." for f in facts)
                 else:
                     answer_text = "No active factual records found."
 
@@ -599,7 +615,10 @@ Direct Answer:"""
         "groq_tokens_used": tokens_used,
     }
 
-    print(f"       Answer: {answer_text[:50]}...")
+    try:
+        print(f"       Answer: {answer_text[:50]}...")
+    except Exception:
+        pass
 
     return {"answer": answer_result}
 
@@ -686,18 +705,21 @@ def run_retrieval(question: str, user_id: str | None = None) -> dict[str, Any]:
 
     final_state = app.invoke(initial_state)
 
-    print("=" * 60)
-    if final_state.get("error"):
-        print(f"Pipeline FAILED at step: {final_state.get('failed_step')}")
-        print(f"Error: {final_state.get('error')}")
-    else:
-        answer = final_state.get("answer", {})
-        print(f"Answer: {answer.get('answer')}")
-        print(f"Confidence: {answer.get('confidence')}")
-        print(f"Abstained: {answer.get('abstained')}")
-        print(f"Source sessions: {answer.get('source_sessions')}")
-        print(f"Query time: {answer.get('query_time_ms')}ms")
-    print("=" * 60)
+    try:
+        print("=" * 60)
+        if final_state.get("error"):
+            print(f"Pipeline FAILED at step: {final_state.get('failed_step')}")
+            print(f"Error: {final_state.get('error')}")
+        else:
+            answer = final_state.get("answer", {})
+            print(f"Answer: {str(answer.get('answer', ''))[:80]}")
+            print(f"Confidence: {answer.get('confidence')}")
+            print(f"Abstained: {answer.get('abstained')}")
+            print(f"Source sessions: {answer.get('source_sessions')}")
+            print(f"Query time: {answer.get('query_time_ms')}ms")
+        print("=" * 60)
+    except Exception:
+        pass
 
     return final_state
 

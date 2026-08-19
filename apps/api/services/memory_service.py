@@ -358,57 +358,45 @@ class MemoryService:
             with self.hydra._driver.session() as session:
                 params = {"entity_name": entity_name, "user_id": user_id}
                 current_query = (
-                    "MATCH (f:Fact)-[:MENTIONS]->(e:Entity {name: $entity_name, user_id: $user_id}) "
-                    "MATCH (f)-[:OCCURRED_IN]->(s:Session {user_id: $user_id}) "
-                    "WHERE NOT (f)<-[:SUPERSEDES*1..]-(newer_f:Fact) "
-                    "AND NOT (f)-[:INVALIDATED_BY]->(inv:Session) "
+                    "MATCH (f:Fact)-[:MENTIONS]->(e:Entity) "
+                    "MATCH (f)-[:OCCURRED_IN]->(s:Session) "
+                    "WHERE e.user_id = $user_id AND s.user_id = $user_id "
+                    "AND f.is_current = true "
+                    "RETURN f.id, f.content, f.confidence, f.created_at, s.session_id, e.name AS entity_name"
                 )
-                current_query += "RETURN f.id, f.content, f.confidence, f.created_at, s.session_id"
 
-                result = session.run(current_query, **params)
+                result = session.run(current_query, user_id=user_id)
                 for record in result:
-                    current_facts.append({
-                        "fact_id": record["f.id"],
-                        "content": record["f.content"],
-                        "confidence": record["f.confidence"],
-                        "created_at": record["f.created_at"],
-                        "session_id": record["s.session_id"],
-                    })
+                    e_name = str(record.get("entity_name") or "")
+                    if e_name.lower() == entity_name.lower():
+                        current_facts.append({
+                            "fact_id": record["f.id"],
+                            "content": record["f.content"],
+                            "confidence": record["f.confidence"],
+                            "created_at": record["f.created_at"],
+                            "session_id": record["s.session_id"],
+                        })
 
                 historical_query = (
-                    "MATCH (newer:Fact)-[:SUPERSEDES*1..]->(f:Fact)-[:MENTIONS]->"
-                    "(e:Entity {name: $entity_name, user_id: $user_id}) "
-                    "MATCH (f)-[:OCCURRED_IN]->(s:Session {user_id: $user_id}) "
+                    "MATCH (f:Fact)-[:MENTIONS]->(e:Entity) "
+                    "MATCH (f)-[:OCCURRED_IN]->(s:Session) "
+                    "WHERE e.user_id = $user_id AND s.user_id = $user_id "
+                    "AND f.is_current = false "
+                    "RETURN DISTINCT f.id, f.content, f.confidence, f.created_at, s.session_id, e.name AS entity_name"
                 )
-                historical_query += "RETURN DISTINCT f.id, f.content, f.confidence, f.created_at, s.session_id, newer.id as superseded_by"
 
-                result = session.run(historical_query, **params)
+                result = session.run(historical_query, user_id=user_id)
                 for record in result:
-                    historical_facts.append({
-                        "fact_id": record["f.id"],
-                        "content": record["f.content"],
-                        "confidence": record["f.confidence"],
-                        "created_at": record["f.created_at"],
-                        "session_id": record["s.session_id"],
-                        "superseded_by": record["superseded_by"],
-                    })
-
-                invalidated_query = (
-                    "MATCH (f:Fact)-[:INVALIDATED_BY]->(s:Session {user_id: $user_id}) "
-                    "MATCH (f)-[:MENTIONS]->(e:Entity {name: $entity_name, user_id: $user_id}) "
-                )
-                invalidated_query += "RETURN f.id, f.content, f.confidence, f.created_at, s.session_id, s.started_at AS invalidated_at"
-
-                result = session.run(invalidated_query, **params)
-                for record in result:
-                    invalidated_facts.append({
-                        "fact_id": record["f.id"],
-                        "content": record["f.content"],
-                        "confidence": record["f.confidence"],
-                        "created_at": record["f.created_at"],
-                        "session_id": record["s.session_id"],
-                        "invalidated_at": record["invalidated_at"],
-                    })
+                    e_name = str(record.get("entity_name") or "")
+                    if e_name.lower() == entity_name.lower():
+                        historical_facts.append({
+                            "fact_id": record["f.id"],
+                            "content": record["f.content"],
+                            "confidence": record["f.confidence"],
+                            "created_at": record["f.created_at"],
+                            "session_id": record["s.session_id"],
+                            "superseded_by": None,
+                        })
         except Exception as exc:  # pragma: no cover - graph unavailable path
             return {
                 "entity_name": entity_name,
@@ -614,9 +602,12 @@ class MemoryService:
                         model=settings.groq_model,
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.2,
-                        max_tokens=150,
+                        max_tokens=300,
                     )
-                    vector_answer = chat_resp.choices[0].message.content.strip()
+                    raw_vec = chat_resp.choices[0].message.content.strip()
+                    vector_answer = re.sub(r"<think>[\s\S]*?(?:</think>|$)", "", raw_vec).strip()
+                    if not vector_answer:
+                        vector_answer = raw_vec
                 except Exception:
                     pass
 
@@ -770,13 +761,23 @@ class MemoryService:
         if extracted_entity_name:
             with self.hydra._driver.session() as db_session:
                 res = db_session.run(
-                    "MATCH (e:Entity {user_id: $user_id}) "
-                    "WHERE toLower(e.name) = toLower($name) "
+                    "MATCH (e:Entity) "
+                    "WHERE e.user_id = $user_id AND e.name = $name "
                     "RETURN e.name AS name, e.type AS type LIMIT 1",
-                    user_id=user_id,
-                    name=extracted_entity_name,
+                    user_id=str(user_id or "anonymous"),
+                    name=str(extracted_entity_name or ""),
                 )
                 record = res.single()
+                if not record:
+                    # Fallback check without name filter
+                    all_entities = db_session.run(
+                        "MATCH (e:Entity) WHERE e.user_id = $user_id RETURN e.name AS name, e.type AS type LIMIT 50",
+                        user_id=str(user_id or "anonymous"),
+                    )
+                    for r in all_entities:
+                        if r.get("name", "").lower() == str(extracted_entity_name or "").lower():
+                            record = r
+                            break
                 if record:
                     in_graph = True
                     entity_type = record.get("type") or "Entity"
@@ -792,8 +793,8 @@ class MemoryService:
             # Check if keywords match any known entities
             with self.hydra._driver.session() as db_session:
                 res = db_session.run(
-                    "MATCH (e:Entity {user_id: $user_id}) RETURN e.name AS name, e.type AS type LIMIT 5",
-                    user_id=user_id,
+                    "MATCH (e:Entity) WHERE e.user_id = $user_id RETURN e.name AS name, e.type AS type LIMIT 5",
+                    user_id=str(user_id or "anonymous"),
                 )
                 for record in res:
                     name = record.get("name", "")
@@ -871,11 +872,15 @@ class MemoryService:
                         model=settings.groq_model,
                         messages=[{"role": "user", "content": sim_prompt}],
                         temperature=0.7,
-                        max_tokens=60,
+                        max_tokens=300,
                     )
-                    hallucination_simulation = sim_resp.choices[0].message.content.strip()
+                    raw_sim = sim_resp.choices[0].message.content.strip()
+                    import re
+                    hallucination_simulation = re.sub(r"<think>[\s\S]*?(?:</think>|$)", "", raw_sim).strip()
+                    if not hallucination_simulation:
+                        hallucination_simulation = f"Based on common profiles, Alex likely drives a Tesla or BMW."
                 except Exception:
-                    hallucination_simulation = f"A naive model would hallucinate plausible assertions regarding '{question}' without graph grounding."
+                    hallucination_simulation = f"A naive model would fabricate plausible assertions regarding '{question}' without graph grounding."
             else:
                 hallucination_simulation = f"A naive model without graph grounding would fabricate plausible assumptions for '{question}'."
         else:

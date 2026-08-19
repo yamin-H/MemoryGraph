@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
 import { Search, RotateCcw, Network } from 'lucide-react';
 
 // Dynamically import with ssr:false — Three.js/WebGL requires browser APIs
@@ -12,18 +13,35 @@ const MemoryGraph = dynamic(
     loading: () => (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-500">
         <div className="w-10 h-10 border-2 border-amber-500/40 border-t-amber-500 rounded-full animate-spin" />
-        <span className="text-xs font-semibold font-mono text-slate-600 dark:text-slate-400">Loading 3D Knowledge Graph...</span>
+        <span className="text-xs font-semibold font-mono text-slate-600 dark:text-slate-400">Loading Knowledge Graph...</span>
       </div>
     ),
   }
 );
 
 export default function GraphExplorerPage() {
-  const [searchInput, setSearchInput] = useState('');
+  const searchParams = useSearchParams();
+  const initialEntity = searchParams.get('entity') || undefined;
+  const initialUser = searchParams.get('user_id') || 'alex';
+
+  const [searchInput, setSearchInput] = useState(initialEntity || '');
   const [searchType, setSearchType] = useState<'entity' | 'session'>('entity');
-  const [activeEntity, setActiveEntity] = useState<string | undefined>(undefined);
+  const [activeEntity, setActiveEntity] = useState<string | undefined>(initialEntity);
   const [activeSession, setActiveSession] = useState<string | undefined>(undefined);
-  const [userId, setUserId] = useState('alex');
+  const [userId, setUserId] = useState(initialUser);
+
+  useEffect(() => {
+    const entity = searchParams.get('entity');
+    const user = searchParams.get('user_id');
+    if (entity) {
+      setActiveEntity(entity);
+      setSearchInput(entity);
+      setSearchType('entity');
+    }
+    if (user) {
+      setUserId(user);
+    }
+  }, [searchParams]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +67,7 @@ export default function GraphExplorerPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-100 dark:bg-[#090d16] transition-colors duration-200">
+    <div className="flex flex-col h-full bg-slate-100 dark:bg-[#090d16] transition-colors duration-200" suppressHydrationWarning>
       {/* Top Search & Filter Bar */}
       <div className="px-6 py-3.5 border-b border-slate-200 dark:border-white/[0.08] bg-white/80 dark:bg-[#0c1220]/80 backdrop-blur-xl flex-shrink-0 z-10">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -135,7 +153,7 @@ export default function GraphExplorerPage() {
         </div>
       </div>
 
-      {/* 3D Visualizer Canvas */}
+      {/* Graph Visualizer Canvas */}
       <div className="flex-1 min-h-0 relative">
         <MemoryGraph entityName={activeEntity} sessionId={activeSession} userId={userId.trim() || 'user'} />
       </div>

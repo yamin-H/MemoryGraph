@@ -71,7 +71,7 @@ def detect_invalidations(
     current_session_id: str,
     user_id: str,
     current_timestamp: str,
-    model: str = "openai/gpt-oss-120b",
+    model: str = "openai/gpt-oss-20b",
 ) -> list[dict[str, Any]]:
     """Detect facts that have become stale due to time-bound conditions.
 
@@ -143,6 +143,19 @@ def detect_invalidations(
             temperature=0.1,
             max_tokens=1024,
         )
+    except Exception:
+        try:
+            response = client.chat.completions.create(
+                model="qwen/qwen3.6-27b",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.1,
+                max_tokens=1024,
+            )
+        except Exception:
+            return []
 
         content = response.choices[0].message.content
         if not content:

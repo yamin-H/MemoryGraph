@@ -68,7 +68,18 @@ def detect_supersession(
     hydra: HydraDB,
     new_facts: list[dict[str, Any]],
     user_id: str,
-    model: str = "openai/gpt-oss-120b",
+    model: str = "openai/gpt-oss-20b",
+) -> list[dict[str, Any]]:
+    return _detect_supersession_impl(client, hydra, new_facts, user_id, model)
+
+detect_supersessions = detect_supersession
+
+def _detect_supersession_impl(
+    client: Groq,
+    hydra: HydraDB,
+    new_facts: list[dict[str, Any]],
+    user_id: str,
+    model: str = "openai/gpt-oss-20b",
 ) -> list[dict[str, Any]]:
     """Detect facts that should be superseded by new facts.
 
@@ -126,6 +137,20 @@ def detect_supersession(
             temperature=0.1,
             max_tokens=1024,
         )
+    except Exception:
+        try:
+            response = client.chat.completions.create(
+                model="qwen/qwen3.6-27b",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.1,
+                max_tokens=1024,
+            )
+        except Exception:
+            return []
 
         content = response.choices[0].message.content
         if not content:

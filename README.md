@@ -172,48 +172,37 @@ curl http://localhost:8000/health
 - **Frontend Dashboard:** [http://localhost:3000](http://localhost:3000)
 - **FastAPI Backend & Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
 - **HydraDB Bolt:** `neo4j://localhost:7687` (from `ghcr.io/hydra-db/hydradb`)
-- **HydraDB Admin UI:** [http://localhost:9090](http://localhost:9090)
+### 2. Fast Manual Local Setup (Recommended for Development / Instant Hot-Reload)
 
-### 2. Local Development (without Docker)
+To avoid the time-consuming Docker build process every time you make a change, the best workflow is to run only the databases in Docker (which start instantly since they don't need to build) and run the Backend and Frontend directly on your machine. This gives you instant hot-reloading for your code.
 
-If you prefer to run services locally:
-
+#### 1. Start the Databases (Instantly)
+You still need the databases (HydraDB, Redis, Postgres), but since we aren't building the frontend/backend in Docker, this command takes 1-2 seconds:
 ```bash
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Install Node dependencies
-cd apps/web && npm install && cd ../..
-
-# Start HydraDB locally (using Docker)
-docker run -d --name hydradb \
-  -p 7687:7687 -p 8443:8443 -p 9090:9090 \
-  -e HYDRA_ADMIN_TOKEN=local-development-token-32-bytes \
-  -v $(pwd)/hydradb-data:/data \
-  ghcr.io/hydra-db/hydradb:latest
-
-# Start Redis (optional, for caching/metrics)
-docker run -d --name redis -p 6379:6379 redis:alpine
-
-# Start PostgreSQL + pgvector (optional, for vector baseline)
-docker run -d --name postgres \
-  -p 5432:5432 \
-  -e POSTGRES_DB=memorygraph_baseline \
-  -e POSTGRES_PASSWORD=postgres \
-  pgvector/pgvector:pg16
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your GROQ_API_KEY
-
-# Run API server
-cd apps/api && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-# Run Web frontend (in another terminal)
-cd apps/web && npm run dev
+docker compose up -d hydradb redis postgres
 ```
 
-> **Note:** The Groq API key is optional. Without it, MemoryGraph falls back to a built-in rule-based fact extractor and question parser. LLM-powered extraction produces better results but the system works end-to-end without it.
+#### 2. Run the Backend (Python FastAPI)
+Open a new terminal and run these commands to start the backend with instant reload:
+```powershell
+cd apps\api
+# (First time only) Install the requirements
+pip install -r requirements.txt
+# Start the backend server (restarts instantly when you save files)
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### 3. Run the Frontend (Next.js)
+Open a third terminal and run these commands for the frontend:
+```powershell
+cd apps\web
+# (First time only) Install node modules
+npm install
+# Start the frontend server (reloads instantly in the browser)
+npm run dev
+```
+
+Now you can go to [http://localhost:3000/graph](http://localhost:3000/graph) and you will see the fixed graph with the new rich UX, dragging functionality, and animations. Whenever you change any code in the frontend or backend, it will update instantly without needing Docker to rebuild anything!
 
 ---
 

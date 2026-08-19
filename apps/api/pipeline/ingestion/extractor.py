@@ -176,7 +176,7 @@ def _rule_based_fallback_facts(session: dict[str, Any]) -> list[dict[str, Any]]:
 def extract_facts(
     client: Any,
     session: dict[str, Any],
-    model: str = "openai/gpt-oss-120b",
+    model: str = "openai/gpt-oss-20b",
 ) -> list[dict[str, Any]]:
     """Extract structured facts from a session payload.
 

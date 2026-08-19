@@ -40,6 +40,12 @@ async def query_memory(request: QueryRequest) -> dict[str, Any]:
     return service.query_memory(request.question, user_id=request.user_id)
 
 
+@router.post("/compare")
+async def compare_systems_route(request: QueryRequest) -> dict[str, Any]:
+    """Execute live comparison between Vector RAG and MemoryGraph for Battle Arena."""
+    return service.compare_query(request.question, user_id=request.user_id)
+
+
 @router.post("/abstention-inspect")
 async def inspect_abstention_route(request: QueryRequest) -> dict[str, Any]:
     """Inspect abstention and hallucination prevention reasoning trace.
